@@ -16,7 +16,7 @@ export function EditorWorkspace() {
 		addFiles,
 		removeItem,
 	} = useVideoUpload();
-	const { canMerge, isMerging, resultFile, status, startMerge } =
+	const { canMerge, isMerging, precheckIssue, resultFile, status, startMerge } =
 		useVideoMerge(items);
 
 	const shouldShowLibrary = items.length > 0 || isRestoring;
@@ -71,6 +71,10 @@ export function EditorWorkspace() {
 				isMerging={isMerging}
 				status={
 					isSaving ? { type: "processing", label: "Сохранение..." } : status
+				}
+				hint={
+					precheckIssue ??
+					"Лучше использовать одинаковые MP4 с совпадающими кодеками."
 				}
 				onMerge={startMerge}
 			/>

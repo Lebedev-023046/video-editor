@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type {
-    MergeErrorResult,
-    MergeProgress,
-    VideoItem,
+	MergeErrorResult,
+	MergeProgress,
+	VideoItem,
 } from "../../../entities/video-item";
 import { getMergeStatusView } from "./merge-status";
+import { getStreamCopyCompatibilityIssue } from "./precheck";
 
 interface MergeWorkerRequest {
 	type: "merge";
@@ -45,9 +46,17 @@ export function useVideoMerge(items: VideoItem[]) {
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [resultFile, setResultFile] = useState<File | null>(null);
 
+	const precheckIssue = useMemo(
+		() => getStreamCopyCompatibilityIssue(items),
+		[items],
+	);
+
 	useEffect(() => {
 		const worker = new Worker(
-			new URL("../../../widgets/shared/workers/video-merge.worker.ts", import.meta.url),
+			new URL(
+				"../../../widgets/shared/workers/video-merge.worker.ts",
+				import.meta.url,
+			),
 			{ type: "module" },
 		);
 
@@ -88,7 +97,7 @@ export function useVideoMerge(items: VideoItem[]) {
 		};
 	}, []);
 
-	const canMerge = items.length >= 2 && !isMerging;
+	const canMerge = items.length >= 2 && !isMerging && !precheckIssue;
 
 	const status = useMemo(
 		() =>
@@ -97,13 +106,25 @@ export function useVideoMerge(items: VideoItem[]) {
 				isMerging,
 				errorMessage,
 				Boolean(resultFile),
-				items.length >= 2,
+				items.length >= 2 && !precheckIssue,
 			),
-		[errorMessage, isMerging, items.length, progress, resultFile],
+		[
+			errorMessage,
+			isMerging,
+			items.length,
+			precheckIssue,
+			progress,
+			resultFile,
+		],
 	);
 
 	function startMerge() {
 		if (!workerRef.current || items.length < 2 || isMerging) {
+			return;
+		}
+
+		if (precheckIssue) {
+			setErrorMessage(precheckIssue);
 			return;
 		}
 
@@ -133,6 +154,7 @@ export function useVideoMerge(items: VideoItem[]) {
 		isMerging,
 		progress,
 		errorMessage,
+		precheckIssue,
 		resultFile,
 		status,
 		startMerge,

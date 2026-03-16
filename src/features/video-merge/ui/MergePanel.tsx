@@ -6,6 +6,7 @@ interface MergePanelProps {
 	canMerge: boolean;
 	isMerging: boolean;
 	status: MergeViewState;
+	hint?: string | null;
 	onMerge: () => void;
 }
 
@@ -13,6 +14,7 @@ export function MergePanel({
 	canMerge,
 	isMerging,
 	status,
+	hint,
 	onMerge,
 }: MergePanelProps) {
 	const inlineContentRef = useRef<HTMLDivElement | null>(null);
@@ -88,6 +90,7 @@ export function MergePanel({
 						/>
 					</div>
 				) : null}
+				{hint ? <span className="merge-hint">{hint}</span> : null}
 			</div>
 			<button
 				type="button"

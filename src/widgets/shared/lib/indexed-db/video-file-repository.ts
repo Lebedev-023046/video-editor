@@ -18,6 +18,7 @@ interface VideoDatabaseSchema extends DBSchema {
 
 export interface VideoFileRepository {
 	save(record: PersistedVideoRecord): Promise<void>;
+	get(id: string): Promise<PersistedVideoRecord | undefined>;
 	getAll(): Promise<PersistedVideoRecord[]>;
 	delete(id: string): Promise<void>;
 	clear(): Promise<void>;
@@ -51,6 +52,9 @@ export async function createVideoFileRepository(): Promise<VideoFileRepository> 
 	return {
 		async save(record) {
 			await database.put(VIDEO_STORE, record);
+		},
+		async get(id) {
+			return database.get(VIDEO_STORE, id);
 		},
 		async getAll() {
 			const records = await database.getAll(VIDEO_STORE);

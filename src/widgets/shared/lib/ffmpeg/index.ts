@@ -1,2 +1,8 @@
-export const ffmpegModulePlaceholder =
-  "ffmpeg.wasm helpers and services will be added in task 4.0.";
+export {
+	buildConcatManifest,
+	type ConcatManifestEntry,
+} from "./concat-manifest";
+export {
+	createBrowserFfmpegService,
+	type BrowserFfmpegService,
+} from "./ffmpeg-service";

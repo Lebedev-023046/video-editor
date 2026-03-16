@@ -1,2 +1,1 @@
-export const videoReorderFeaturePlaceholder =
-  "Video reorder feature will be implemented in task 3.0.";
+export const videoReorderDisabled = "Drag-and-drop is temporarily disabled.";

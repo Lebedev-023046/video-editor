@@ -1,3 +1,5 @@
+import { DownloadResult } from "../../../features/video-download";
+import { MergePanel, useVideoMerge } from "../../../features/video-merge";
 import {
 	VideoUploadZone,
 	useVideoUpload,
@@ -14,6 +16,8 @@ export function EditorWorkspace() {
 		addFiles,
 		removeItem,
 	} = useVideoUpload();
+	const { canMerge, isMerging, resultFile, status, startMerge } =
+		useVideoMerge(items);
 
 	const shouldShowLibrary = items.length > 0 || isRestoring;
 	const shouldShowMessages = Boolean(errorMessage) || uploadIssues.length > 0;
@@ -61,6 +65,16 @@ export function EditorWorkspace() {
 					/>
 				</section>
 			) : null}
+
+			<MergePanel
+				canMerge={canMerge && !isSaving && !isRestoring}
+				isMerging={isMerging}
+				status={
+					isSaving ? { type: "processing", label: "Сохранение..." } : status
+				}
+				onMerge={startMerge}
+			/>
+			<DownloadResult file={resultFile} />
 		</div>
 	);
 }

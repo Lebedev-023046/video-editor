@@ -1,2 +1,2 @@
-export const videoMergeFeaturePlaceholder =
-  "Video merge feature will be implemented in task 4.0.";
+export { useVideoMerge } from "./model/use-video-merge";
+export { MergePanel } from "./ui/MergePanel";

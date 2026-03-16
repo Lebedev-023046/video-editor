@@ -1,2 +1,1 @@
-export const videoDownloadFeaturePlaceholder =
-  "Video download feature will be implemented in task 5.0.";
+export { DownloadResult } from "./ui/DownloadResult";

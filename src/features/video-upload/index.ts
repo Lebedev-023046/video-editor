@@ -1,2 +1,2 @@
-export const videoUploadFeaturePlaceholder =
-  "Video upload feature will be implemented in task 2.0.";
+export { useVideoUpload } from "./model/use-video-upload";
+export { VideoUploadZone } from "./ui/VideoUploadZone";

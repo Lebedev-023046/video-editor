@@ -1,1 +1,1 @@
-export { EditorWorkspace } from "./ui/EditorWorkspace";
+export { EditorWorkspace } from "./ui";

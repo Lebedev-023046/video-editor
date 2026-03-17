@@ -6,7 +6,6 @@ import type {
 	VideoItem,
 } from "../../../entities/video-item";
 import { buildConcatManifest, createBrowserFfmpegService } from "../lib/ffmpeg";
-import { createVideoFileRepository } from "../lib/indexed-db";
 import {
 	buildStreamCopyArgs,
 	buildTranscodeArgs,
@@ -16,7 +15,10 @@ import {
 interface MergeWorkerRequest {
 	type: "merge";
 	payload: {
-		items: VideoItem[];
+		sources: Array<{
+			item: VideoItem;
+			file: File;
+		}>;
 		outputFileName: string;
 	};
 }
@@ -71,8 +73,8 @@ workerScope.onmessage = async (event: MessageEvent<MergeWorkerRequest>) => {
 		return;
 	}
 
-	const { items, outputFileName } = message.payload;
-	const repository = await createVideoFileRepository();
+	const { sources, outputFileName } = message.payload;
+	const items = sources.map((source) => source.item);
 	const ffmpeg = createBrowserFfmpegService({
 		onProgress(progress) {
 			postMessageSafe({
@@ -108,25 +110,19 @@ workerScope.onmessage = async (event: MessageEvent<MergeWorkerRequest>) => {
 
 		const entries = [];
 
-		for (const [index, item] of items.entries()) {
-			const record = await repository.get(item.id);
-
-			if (!record) {
-				throw new Error(`Не найдено сохраненное видео: ${item.name}`);
-			}
-
+		for (const [index, source] of sources.entries()) {
 			logWorkerDebug("loaded source record", {
-				id: item.id,
-				name: item.name,
-				size: record.file.size,
+				id: source.item.id,
+				name: source.item.name,
+				size: source.file.size,
 			});
 
-			const fileData = new Uint8Array(await record.file.arrayBuffer());
-			const inputName = `input-${index}${getExtension(record.item.name)}`;
+			const fileData = new Uint8Array(await source.file.arrayBuffer());
+			const inputName = `input-${index}${getExtension(source.item.name)}`;
 			await ffmpeg.writeFile(`${workDirectory}/${inputName}`, fileData);
 			entries.push({
 				inputName,
-				sourceItem: item,
+				sourceItem: source.item,
 			});
 
 			postMessageSafe({

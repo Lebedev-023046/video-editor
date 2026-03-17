@@ -55,6 +55,7 @@ describe("useVideoUpload", () => {
 		});
 
 		expect(result.current.items).toEqual([]);
+		expect(result.current.sourceFilesById).toEqual({});
 		expect(result.current.errorMessage).toBeNull();
 	});
 
@@ -77,6 +78,9 @@ describe("useVideoUpload", () => {
 		await waitFor(() => {
 			expect(createVideoFileRepositoryMock).toHaveBeenCalledTimes(1);
 		});
+		await act(async () => {
+			await Promise.resolve();
+		});
 
 		const files = [
 			new File(["video"], "clip.mp4", { type: "video/mp4" }),
@@ -90,6 +94,7 @@ describe("useVideoUpload", () => {
 		expect(createVideoItemFromFileMock).toHaveBeenCalledTimes(1);
 		expect(saveMock).toHaveBeenCalledTimes(1);
 		expect(result.current.items.map((item) => item.name)).toEqual(["clip.mp4"]);
+		expect(Object.keys(result.current.sourceFilesById)).toHaveLength(1);
 		expect(result.current.uploadIssues).toEqual([
 			{
 				fileName: "note.txt",
@@ -137,6 +142,7 @@ describe("useVideoUpload", () => {
 			["b", 0],
 			["c", 1],
 		]);
+		expect(Object.keys(result.current.sourceFilesById)).toEqual(["b", "c"]);
 	});
 
 	it("clears all items from storage and local state", async () => {
@@ -167,6 +173,47 @@ describe("useVideoUpload", () => {
 
 		expect(clearMock).toHaveBeenCalledTimes(1);
 		expect(result.current.items).toEqual([]);
+		expect(result.current.sourceFilesById).toEqual({});
 		expect(result.current.errorMessage).toBeNull();
+	});
+
+	it("reorders items and persists normalized order", async () => {
+		const first = createRecord(createItem("a", 0));
+		const second = createRecord(createItem("b", 1));
+		const third = createRecord(createItem("c", 2));
+		const getAllMock = vi
+			.fn()
+			.mockResolvedValueOnce([first, second, third])
+			.mockResolvedValueOnce([first, second, third]);
+		const saveMock = vi.fn().mockResolvedValue(undefined);
+
+		createVideoFileRepositoryMock.mockResolvedValue({
+			getAll: getAllMock,
+			save: saveMock,
+			delete: vi.fn(),
+			clear: vi.fn(),
+		});
+
+		const { useVideoUpload } = await import("./use-video-upload");
+		const { result } = renderHook(() => useVideoUpload());
+
+		await waitFor(() => {
+			expect(result.current.items.map((item) => item.id)).toEqual([
+				"a",
+				"b",
+				"c",
+			]);
+		});
+
+		await act(async () => {
+			await result.current.reorderItems(2, 0);
+		});
+
+		expect(result.current.items.map((item) => [item.id, item.order])).toEqual([
+			["c", 0],
+			["a", 1],
+			["b", 2],
+		]);
+		expect(saveMock).toHaveBeenCalledTimes(3);
 	});
 });

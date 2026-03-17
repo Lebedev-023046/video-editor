@@ -39,6 +39,15 @@ function createItem(
 	};
 }
 
+function createSourceFilesById(items: VideoItem[]) {
+	return Object.fromEntries(
+		items.map((item) => [
+			item.id,
+			new File(["video"], item.name, { type: item.mimeType }),
+		]),
+	);
+}
+
 describe("useVideoMerge", () => {
 	beforeEach(() => {
 		WorkerMock.instances = [];
@@ -52,7 +61,7 @@ describe("useVideoMerge", () => {
 	it("keeps merge disabled until at least two compatible items are present", async () => {
 		const { useVideoMerge } = await import("./use-video-merge");
 		const { result, rerender } = renderHook(
-			({ items }) => useVideoMerge(items),
+			({ items }) => useVideoMerge(items, createSourceFilesById(items)),
 			{
 				initialProps: {
 					items: [createItem("a")],
@@ -80,7 +89,8 @@ describe("useVideoMerge", () => {
 	it("starts a merge, forwards worker messages, and exposes the result file", async () => {
 		const { useVideoMerge } = await import("./use-video-merge");
 		const items = [createItem("a", "first.mp4"), createItem("b", "second.mp4")];
-		const { result } = renderHook(() => useVideoMerge(items));
+		const sourceFilesById = createSourceFilesById(items);
+		const { result } = renderHook(() => useVideoMerge(items, sourceFilesById));
 		const worker = WorkerMock.instances[0];
 
 		act(() => {
@@ -90,7 +100,10 @@ describe("useVideoMerge", () => {
 		expect(worker.postMessage).toHaveBeenCalledWith({
 			type: "merge",
 			payload: {
-				items,
+				sources: items.map((item) => ({
+					item,
+					file: sourceFilesById[item.id],
+				})),
 				outputFileName: "first-merged.mp4",
 			},
 		});
@@ -155,7 +168,7 @@ describe("useVideoMerge", () => {
 			createItem("b", "second.mp4"),
 		];
 		const { result, rerender } = renderHook(
-			({ items }) => useVideoMerge(items),
+			({ items }) => useVideoMerge(items, createSourceFilesById(items)),
 			{
 				initialProps: {
 					items: initialItems,
@@ -194,7 +207,9 @@ describe("useVideoMerge", () => {
 	it("ignores regressive progress updates from the worker", async () => {
 		const { useVideoMerge } = await import("./use-video-merge");
 		const items = [createItem("a", "first.mp4"), createItem("b", "second.mp4")];
-		const { result } = renderHook(() => useVideoMerge(items));
+		const { result } = renderHook(() =>
+			useVideoMerge(items, createSourceFilesById(items)),
+		);
 		const worker = WorkerMock.instances[0];
 
 		act(() => {
@@ -250,7 +265,9 @@ describe("useVideoMerge", () => {
 			createItem("a", "first.mp4"),
 			createItem("b", "second.mp4"),
 		];
-		const { result } = renderHook(() => useVideoMerge(compatibleItems));
+		const { result } = renderHook(() =>
+			useVideoMerge(compatibleItems, createSourceFilesById(compatibleItems)),
+		);
 		const worker = WorkerMock.instances[0];
 
 		act(() => {
@@ -284,7 +301,10 @@ describe("useVideoMerge", () => {
 			createItem("y", "second.webm", "video/webm"),
 		];
 		const { result: incompatibleResult } = renderHook(() =>
-			useVideoMerge(incompatibleItems),
+			useVideoMerge(
+				incompatibleItems,
+				createSourceFilesById(incompatibleItems),
+			),
 		);
 		const secondWorker = WorkerMock.instances[1];
 
@@ -299,7 +319,10 @@ describe("useVideoMerge", () => {
 	it("terminates the worker on unmount", async () => {
 		const { useVideoMerge } = await import("./use-video-merge");
 		const { unmount } = renderHook(() =>
-			useVideoMerge([createItem("a"), createItem("b")]),
+			useVideoMerge(
+				[createItem("a"), createItem("b")],
+				createSourceFilesById([createItem("a"), createItem("b")]),
+			),
 		);
 		const worker = WorkerMock.instances[0];
 

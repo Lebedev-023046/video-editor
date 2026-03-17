@@ -4,6 +4,7 @@ import type {
 	PersistedVideoRecord,
 	VideoItem,
 } from "../../../entities/video-item";
+import { reorderVideos } from "../../../features/video-reorder/model/reorder-videos";
 import {
 	createVideoFileRepository,
 	createVideoItemFromFile,
@@ -17,12 +18,17 @@ interface UploadIssue {
 
 interface UploadState {
 	items: VideoItem[];
+	sourceFilesById: Record<string, File>;
 	isSaving: boolean;
 	errorMessage: string | null;
 	uploadIssues: UploadIssue[];
 	addFiles: (files: FileList | File[]) => Promise<void>;
 	removeItem: (id: string) => Promise<void>;
 	removeAllItems: () => Promise<void>;
+	reorderItems: (
+		sourceIndex: number,
+		destinationIndex: number,
+	) => Promise<void>;
 }
 
 function isVideoFile(file: File) {
@@ -44,6 +50,9 @@ export function useVideoUpload(): UploadState {
 		null,
 	);
 	const [items, setItems] = useState<VideoItem[]>([]);
+	const [sourceFilesById, setSourceFilesById] = useState<Record<string, File>>(
+		{},
+	);
 	const [isSaving, setIsSaving] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [uploadIssues, setUploadIssues] = useState<UploadIssue[]>([]);
@@ -68,6 +77,14 @@ export function useVideoUpload(): UploadState {
 				}
 
 				setItems(records.map((record: PersistedVideoRecord) => record.item));
+				setSourceFilesById(
+					Object.fromEntries(
+						records.map((record: PersistedVideoRecord) => [
+							record.item.id,
+							record.file as File,
+						]),
+					),
+				);
 			} catch {
 				if (isMounted) {
 					setErrorMessage("Не удалось инициализировать хранилище видео.");
@@ -120,6 +137,12 @@ export function useVideoUpload(): UploadState {
 			);
 
 			setItems((currentItems) => [...currentItems, ...newItems]);
+			setSourceFilesById((currentFiles) => ({
+				...currentFiles,
+				...Object.fromEntries(
+					newItems.map((item, index) => [item.id, validFiles[index]]),
+				),
+			}));
 		} catch {
 			setErrorMessage("Не удалось сохранить видео в браузере.");
 		} finally {
@@ -138,13 +161,13 @@ export function useVideoUpload(): UploadState {
 			await repository.delete(id);
 			const remainingRecords: PersistedVideoRecord[] =
 				await repository.getAll();
-			const normalizedRecords = remainingRecords.map(
-				(record: PersistedVideoRecord, index) => ({
-					...record,
+			const normalizedRecords: PersistedVideoRecord[] = remainingRecords.map(
+				(record: PersistedVideoRecord, index): PersistedVideoRecord => ({
 					item: {
 						...record.item,
 						order: index,
 					},
+					file: record.file,
 				}),
 			);
 
@@ -156,6 +179,13 @@ export function useVideoUpload(): UploadState {
 
 			setItems(
 				normalizedRecords.map((record: PersistedVideoRecord) => record.item),
+			);
+			setSourceFilesById((currentFiles) =>
+				Object.fromEntries(
+					Object.entries(currentFiles).filter(
+						([currentId]) => currentId !== id,
+					),
+				),
 			);
 		} catch {
 			setErrorMessage("Не удалось удалить видео.");
@@ -172,18 +202,73 @@ export function useVideoUpload(): UploadState {
 		try {
 			await repository.clear();
 			setItems([]);
+			setSourceFilesById({});
 		} catch {
 			setErrorMessage("Не удалось удалить все видео.");
 		}
 	}
 
+	async function reorderItems(sourceIndex: number, destinationIndex: number) {
+		if (!repository || sourceIndex === destinationIndex) {
+			return;
+		}
+
+		const activeItem = items[sourceIndex];
+		const targetItem = items[destinationIndex];
+
+		if (!activeItem || !targetItem) {
+			return;
+		}
+
+		setErrorMessage(null);
+
+		try {
+			const reorderedItems = reorderVideos(items, activeItem.id, targetItem.id);
+			const records = await repository.getAll();
+			const recordsById = new Map<string, PersistedVideoRecord>(
+				records.map(
+					(record: PersistedVideoRecord): [string, PersistedVideoRecord] => [
+						record.item.id,
+						record,
+					],
+				),
+			);
+			const normalizedRecords: PersistedVideoRecord[] = reorderedItems.flatMap(
+				(item): PersistedVideoRecord[] => {
+					const record = recordsById.get(item.id);
+					if (!record) {
+						return [];
+					}
+
+					return [
+						{
+							file: record.file,
+							item,
+						},
+					];
+				},
+			);
+
+			await Promise.all(
+				normalizedRecords.map((record: PersistedVideoRecord) =>
+					repository.save(record),
+				),
+			);
+			setItems(reorderedItems);
+		} catch {
+			setErrorMessage("Не удалось изменить порядок видео.");
+		}
+	}
+
 	return {
 		items,
+		sourceFilesById,
 		isSaving,
 		errorMessage,
 		uploadIssues,
 		addFiles,
 		removeItem,
 		removeAllItems,
+		reorderItems,
 	};
 }

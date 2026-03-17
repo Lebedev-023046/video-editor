@@ -40,6 +40,15 @@ function createItem(id: string, order: number): VideoItem {
 	};
 }
 
+function createSourceFilesById(items: VideoItem[]) {
+	return Object.fromEntries(
+		items.map((item) => [
+			item.id,
+			new File(["video"], item.name, { type: item.mimeType }),
+		]),
+	);
+}
+
 function createStatus(overrides: Partial<MergeViewState> = {}): MergeViewState {
 	return {
 		type: "idle",
@@ -55,17 +64,21 @@ describe("EditorWorkspace", () => {
 	});
 
 	it("renders the ordered library, forwards uploads, and enables merge when ready", () => {
+		const items = [createItem("a", 0), createItem("b", 1)];
 		const addFiles = vi.fn().mockResolvedValue(undefined);
 		const removeAllItems = vi.fn().mockResolvedValue(undefined);
+		const reorderItems = vi.fn().mockResolvedValue(undefined);
 		const startMerge = vi.fn();
 		useVideoUploadMock.mockReturnValue({
-			items: [createItem("a", 0), createItem("b", 1)],
+			items,
+			sourceFilesById: createSourceFilesById(items),
 			isSaving: false,
 			errorMessage: null,
 			uploadIssues: [],
 			addFiles,
 			removeItem: vi.fn(),
 			removeAllItems,
+			reorderItems,
 		});
 		useVideoMergeMock.mockReturnValue({
 			canMerge: true,
@@ -83,6 +96,7 @@ describe("EditorWorkspace", () => {
 		expect(screen.getByText("clip-b.mp4")).toBeInTheDocument();
 		expect(screen.getByText("Общий размер: 2 KB")).toBeInTheDocument();
 		expect(screen.getByRole("button", { name: "Объединить" })).toBeEnabled();
+		expect(screen.getAllByText("::")).toHaveLength(2);
 
 		fireEvent.change(fileInput as HTMLInputElement, {
 			target: {
@@ -94,12 +108,15 @@ describe("EditorWorkspace", () => {
 
 		expect(addFiles).toHaveBeenCalledTimes(1);
 		expect(removeAllItems).toHaveBeenCalledTimes(1);
+		expect(reorderItems).not.toHaveBeenCalled();
 		expect(startMerge).toHaveBeenCalledTimes(1);
 	});
 
 	it("shows upload issues and the download action when a merged file exists", () => {
+		const items = [createItem("a", 0), createItem("b", 1)];
 		useVideoUploadMock.mockReturnValue({
-			items: [createItem("a", 0), createItem("b", 1)],
+			items,
+			sourceFilesById: createSourceFilesById(items),
 			isSaving: false,
 			errorMessage: "Не удалось сохранить видео в браузере.",
 			uploadIssues: [
@@ -108,6 +125,7 @@ describe("EditorWorkspace", () => {
 			addFiles: vi.fn(),
 			removeItem: vi.fn(),
 			removeAllItems: vi.fn(),
+			reorderItems: vi.fn(),
 		});
 		useVideoMergeMock.mockReturnValue({
 			canMerge: false,

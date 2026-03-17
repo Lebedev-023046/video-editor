@@ -10,15 +10,17 @@ import { VideoLibraryPanel } from "./VideoLibraryPanel";
 export function EditorWorkspace() {
 	const {
 		items,
+		sourceFilesById,
 		isSaving,
 		errorMessage,
 		uploadIssues,
 		addFiles,
 		removeItem,
 		removeAllItems,
+		reorderItems,
 	} = useVideoUpload();
 	const { canMerge, isMerging, precheckIssue, resultFile, status, startMerge } =
-		useVideoMerge(items);
+		useVideoMerge(items, sourceFilesById);
 
 	const shouldShowLibrary = items.length > 0;
 	const shouldShowMessages = Boolean(errorMessage) || uploadIssues.length > 0;
@@ -67,6 +69,9 @@ export function EditorWorkspace() {
 						isSaving={isSaving}
 						onRemove={(id) => removeItem(id)}
 						onRemoveAll={() => removeAllItems()}
+						onReorder={(sourceIndex, destinationIndex) =>
+							reorderItems(sourceIndex, destinationIndex)
+						}
 					/>
 				</section>
 			) : null}

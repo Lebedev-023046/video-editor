@@ -40,6 +40,15 @@ function createItem(id: string, order: number): VideoItem {
 	};
 }
 
+function createSourceFilesById(items: VideoItem[]) {
+	return Object.fromEntries(
+		items.map((item) => [
+			item.id,
+			new File(["video"], item.name, { type: item.mimeType }),
+		]),
+	);
+}
+
 function createStatus(overrides: Partial<MergeViewState> = {}): MergeViewState {
 	return {
 		type: "idle",
@@ -55,11 +64,13 @@ describe("EditorWorkspace", () => {
 	});
 
 	it("renders the ordered library, forwards uploads, and enables merge when ready", () => {
+		const items = [createItem("a", 0), createItem("b", 1)];
 		const addFiles = vi.fn().mockResolvedValue(undefined);
 		const removeAllItems = vi.fn().mockResolvedValue(undefined);
 		const startMerge = vi.fn();
 		useVideoUploadMock.mockReturnValue({
-			items: [createItem("a", 0), createItem("b", 1)],
+			items,
+			sourceFilesById: createSourceFilesById(items),
 			isSaving: false,
 			errorMessage: null,
 			uploadIssues: [],
@@ -98,8 +109,10 @@ describe("EditorWorkspace", () => {
 	});
 
 	it("shows upload issues and the download action when a merged file exists", () => {
+		const items = [createItem("a", 0), createItem("b", 1)];
 		useVideoUploadMock.mockReturnValue({
-			items: [createItem("a", 0), createItem("b", 1)],
+			items,
+			sourceFilesById: createSourceFilesById(items),
 			isSaving: false,
 			errorMessage: "Не удалось сохранить видео в браузере.",
 			uploadIssues: [

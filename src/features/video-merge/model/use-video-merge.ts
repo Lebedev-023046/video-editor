@@ -11,7 +11,10 @@ import { getStreamCopyCompatibilityIssue } from "./precheck";
 interface MergeWorkerRequest {
 	type: "merge";
 	payload: {
-		items: VideoItem[];
+		sources: Array<{
+			item: VideoItem;
+			file: File;
+		}>;
 		outputFileName: string;
 	};
 }
@@ -48,7 +51,10 @@ function getMergedFileName(items: VideoItem[]) {
 	return `${baseName}-merged.mp4`;
 }
 
-export function useVideoMerge(items: VideoItem[]) {
+export function useVideoMerge(
+	items: VideoItem[],
+	sourceFilesById: Record<string, File>,
+) {
 	const workerRef = useRef<Worker | null>(null);
 	const lastItemsSignatureRef = useRef<string | null>(null);
 	const [progress, setProgress] = useState<MergeProgress | null>(null);
@@ -214,10 +220,26 @@ export function useVideoMerge(items: VideoItem[]) {
 		});
 		setIsMerging(true);
 
+		const sources = items.flatMap((item) => {
+			const file = sourceFilesById[item.id];
+			return file ? [{ item, file }] : [];
+		});
+
+		if (sources.length !== items.length) {
+			logMergeDebug("startMerge blocked by missing source files", {
+				itemCount: items.length,
+				sourceCount: sources.length,
+			});
+			setIsMerging(false);
+			setProgress(null);
+			setErrorMessage("Не удалось найти исходные файлы для объединения.");
+			return;
+		}
+
 		const request: MergeWorkerRequest = {
 			type: "merge",
 			payload: {
-				items,
+				sources,
 				outputFileName: getMergedFileName(items),
 			},
 		};

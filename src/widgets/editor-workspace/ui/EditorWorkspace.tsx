@@ -10,6 +10,7 @@ import { VideoLibraryPanel } from "./VideoLibraryPanel";
 export function EditorWorkspace() {
 	const {
 		items,
+		sourceFilesById,
 		isSaving,
 		errorMessage,
 		uploadIssues,
@@ -18,7 +19,7 @@ export function EditorWorkspace() {
 		removeAllItems,
 	} = useVideoUpload();
 	const { canMerge, isMerging, precheckIssue, resultFile, status, startMerge } =
-		useVideoMerge(items);
+		useVideoMerge(items, sourceFilesById);
 
 	const shouldShowLibrary = items.length > 0;
 	const shouldShowMessages = Boolean(errorMessage) || uploadIssues.length > 0;

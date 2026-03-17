@@ -17,6 +17,7 @@ interface UploadIssue {
 
 interface UploadState {
 	items: VideoItem[];
+	sourceFilesById: Record<string, File>;
 	isSaving: boolean;
 	errorMessage: string | null;
 	uploadIssues: UploadIssue[];
@@ -44,6 +45,9 @@ export function useVideoUpload(): UploadState {
 		null,
 	);
 	const [items, setItems] = useState<VideoItem[]>([]);
+	const [sourceFilesById, setSourceFilesById] = useState<Record<string, File>>(
+		{},
+	);
 	const [isSaving, setIsSaving] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [uploadIssues, setUploadIssues] = useState<UploadIssue[]>([]);
@@ -68,6 +72,14 @@ export function useVideoUpload(): UploadState {
 				}
 
 				setItems(records.map((record: PersistedVideoRecord) => record.item));
+				setSourceFilesById(
+					Object.fromEntries(
+						records.map((record: PersistedVideoRecord) => [
+							record.item.id,
+							record.file as File,
+						]),
+					),
+				);
 			} catch {
 				if (isMounted) {
 					setErrorMessage("Не удалось инициализировать хранилище видео.");
@@ -120,6 +132,12 @@ export function useVideoUpload(): UploadState {
 			);
 
 			setItems((currentItems) => [...currentItems, ...newItems]);
+			setSourceFilesById((currentFiles) => ({
+				...currentFiles,
+				...Object.fromEntries(
+					newItems.map((item, index) => [item.id, validFiles[index]]),
+				),
+			}));
 		} catch {
 			setErrorMessage("Не удалось сохранить видео в браузере.");
 		} finally {
@@ -157,6 +175,13 @@ export function useVideoUpload(): UploadState {
 			setItems(
 				normalizedRecords.map((record: PersistedVideoRecord) => record.item),
 			);
+			setSourceFilesById((currentFiles) =>
+				Object.fromEntries(
+					Object.entries(currentFiles).filter(
+						([currentId]) => currentId !== id,
+					),
+				),
+			);
 		} catch {
 			setErrorMessage("Не удалось удалить видео.");
 		}
@@ -172,6 +197,7 @@ export function useVideoUpload(): UploadState {
 		try {
 			await repository.clear();
 			setItems([]);
+			setSourceFilesById({});
 		} catch {
 			setErrorMessage("Не удалось удалить все видео.");
 		}
@@ -179,6 +205,7 @@ export function useVideoUpload(): UploadState {
 
 	return {
 		items,
+		sourceFilesById,
 		isSaving,
 		errorMessage,
 		uploadIssues,

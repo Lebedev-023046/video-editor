@@ -55,6 +55,7 @@ describe("useVideoUpload", () => {
 		});
 
 		expect(result.current.items).toEqual([]);
+		expect(result.current.sourceFilesById).toEqual({});
 		expect(result.current.errorMessage).toBeNull();
 	});
 
@@ -77,6 +78,9 @@ describe("useVideoUpload", () => {
 		await waitFor(() => {
 			expect(createVideoFileRepositoryMock).toHaveBeenCalledTimes(1);
 		});
+		await act(async () => {
+			await Promise.resolve();
+		});
 
 		const files = [
 			new File(["video"], "clip.mp4", { type: "video/mp4" }),
@@ -90,6 +94,7 @@ describe("useVideoUpload", () => {
 		expect(createVideoItemFromFileMock).toHaveBeenCalledTimes(1);
 		expect(saveMock).toHaveBeenCalledTimes(1);
 		expect(result.current.items.map((item) => item.name)).toEqual(["clip.mp4"]);
+		expect(Object.keys(result.current.sourceFilesById)).toHaveLength(1);
 		expect(result.current.uploadIssues).toEqual([
 			{
 				fileName: "note.txt",
@@ -137,6 +142,7 @@ describe("useVideoUpload", () => {
 			["b", 0],
 			["c", 1],
 		]);
+		expect(Object.keys(result.current.sourceFilesById)).toEqual(["b", "c"]);
 	});
 
 	it("clears all items from storage and local state", async () => {
@@ -167,6 +173,7 @@ describe("useVideoUpload", () => {
 
 		expect(clearMock).toHaveBeenCalledTimes(1);
 		expect(result.current.items).toEqual([]);
+		expect(result.current.sourceFilesById).toEqual({});
 		expect(result.current.errorMessage).toBeNull();
 	});
 });

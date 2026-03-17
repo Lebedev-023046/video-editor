@@ -176,4 +176,44 @@ describe("useVideoUpload", () => {
 		expect(result.current.sourceFilesById).toEqual({});
 		expect(result.current.errorMessage).toBeNull();
 	});
+
+	it("reorders items and persists normalized order", async () => {
+		const first = createRecord(createItem("a", 0));
+		const second = createRecord(createItem("b", 1));
+		const third = createRecord(createItem("c", 2));
+		const getAllMock = vi
+			.fn()
+			.mockResolvedValueOnce([first, second, third])
+			.mockResolvedValueOnce([first, second, third]);
+		const saveMock = vi.fn().mockResolvedValue(undefined);
+
+		createVideoFileRepositoryMock.mockResolvedValue({
+			getAll: getAllMock,
+			save: saveMock,
+			delete: vi.fn(),
+			clear: vi.fn(),
+		});
+
+		const { useVideoUpload } = await import("./use-video-upload");
+		const { result } = renderHook(() => useVideoUpload());
+
+		await waitFor(() => {
+			expect(result.current.items.map((item) => item.id)).toEqual([
+				"a",
+				"b",
+				"c",
+			]);
+		});
+
+		await act(async () => {
+			await result.current.reorderItems(2, 0);
+		});
+
+		expect(result.current.items.map((item) => [item.id, item.order])).toEqual([
+			["c", 0],
+			["a", 1],
+			["b", 2],
+		]);
+		expect(saveMock).toHaveBeenCalledTimes(3);
+	});
 });

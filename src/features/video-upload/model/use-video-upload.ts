@@ -4,6 +4,7 @@ import type {
 	PersistedVideoRecord,
 	VideoItem,
 } from "../../../entities/video-item";
+import { reorderVideos } from "../../../features/video-reorder/model/reorder-videos";
 import {
 	createVideoFileRepository,
 	createVideoItemFromFile,
@@ -24,6 +25,10 @@ interface UploadState {
 	addFiles: (files: FileList | File[]) => Promise<void>;
 	removeItem: (id: string) => Promise<void>;
 	removeAllItems: () => Promise<void>;
+	reorderItems: (
+		sourceIndex: number,
+		destinationIndex: number,
+	) => Promise<void>;
 }
 
 function isVideoFile(file: File) {
@@ -156,13 +161,13 @@ export function useVideoUpload(): UploadState {
 			await repository.delete(id);
 			const remainingRecords: PersistedVideoRecord[] =
 				await repository.getAll();
-			const normalizedRecords = remainingRecords.map(
-				(record: PersistedVideoRecord, index) => ({
-					...record,
+			const normalizedRecords: PersistedVideoRecord[] = remainingRecords.map(
+				(record: PersistedVideoRecord, index): PersistedVideoRecord => ({
 					item: {
 						...record.item,
 						order: index,
 					},
+					file: record.file,
 				}),
 			);
 
@@ -203,6 +208,58 @@ export function useVideoUpload(): UploadState {
 		}
 	}
 
+	async function reorderItems(sourceIndex: number, destinationIndex: number) {
+		if (!repository || sourceIndex === destinationIndex) {
+			return;
+		}
+
+		const activeItem = items[sourceIndex];
+		const targetItem = items[destinationIndex];
+
+		if (!activeItem || !targetItem) {
+			return;
+		}
+
+		setErrorMessage(null);
+
+		try {
+			const reorderedItems = reorderVideos(items, activeItem.id, targetItem.id);
+			const records = await repository.getAll();
+			const recordsById = new Map<string, PersistedVideoRecord>(
+				records.map(
+					(record: PersistedVideoRecord): [string, PersistedVideoRecord] => [
+						record.item.id,
+						record,
+					],
+				),
+			);
+			const normalizedRecords: PersistedVideoRecord[] = reorderedItems.flatMap(
+				(item): PersistedVideoRecord[] => {
+					const record = recordsById.get(item.id);
+					if (!record) {
+						return [];
+					}
+
+					return [
+						{
+							file: record.file,
+							item,
+						},
+					];
+				},
+			);
+
+			await Promise.all(
+				normalizedRecords.map((record: PersistedVideoRecord) =>
+					repository.save(record),
+				),
+			);
+			setItems(reorderedItems);
+		} catch {
+			setErrorMessage("Не удалось изменить порядок видео.");
+		}
+	}
+
 	return {
 		items,
 		sourceFilesById,
@@ -212,5 +269,6 @@ export function useVideoUpload(): UploadState {
 		addFiles,
 		removeItem,
 		removeAllItems,
+		reorderItems,
 	};
 }

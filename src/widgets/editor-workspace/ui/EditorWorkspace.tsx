@@ -17,6 +17,7 @@ export function EditorWorkspace() {
 		addFiles,
 		removeItem,
 		removeAllItems,
+		reorderItems,
 	} = useVideoUpload();
 	const { canMerge, isMerging, precheckIssue, resultFile, status, startMerge } =
 		useVideoMerge(items, sourceFilesById);
@@ -68,6 +69,9 @@ export function EditorWorkspace() {
 						isSaving={isSaving}
 						onRemove={(id) => removeItem(id)}
 						onRemoveAll={() => removeAllItems()}
+						onReorder={(sourceIndex, destinationIndex) =>
+							reorderItems(sourceIndex, destinationIndex)
+						}
 					/>
 				</section>
 			) : null}

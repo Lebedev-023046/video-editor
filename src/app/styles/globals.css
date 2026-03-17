@@ -91,7 +91,7 @@ button {
 
 .merge-status-bar {
 	display: flex;
-	align-items: center;
+	align-items: flex-start;
 	justify-content: space-between;
 	gap: 16px;
 	padding: 6px 2px 0;
@@ -107,10 +107,11 @@ button {
 }
 
 .merge-status-card-compact {
-	flex: 0 0 auto;
+	flex: 1 1 auto;
+	width: 100%;
+	max-width: 50%;
 	min-width: 0;
-	max-width: calc(100% - 236px);
-	transition: width 0.24s ease;
+	height: auto;
 }
 
 .merge-status-card-idle {
@@ -139,8 +140,8 @@ button {
 	display: flex;
 	align-items: center;
 	gap: 12px;
-	flex-wrap: nowrap;
-	width: max-content;
+	flex-wrap: wrap;
+	width: 100%;
 	max-width: 100%;
 }
 
@@ -186,7 +187,7 @@ button {
 }
 
 .merge-status-inline .merge-status-copy {
-	white-space: nowrap;
+	white-space: normal;
 }
 
 .merge-status-copy-processing {
@@ -209,6 +210,7 @@ button {
 	color: var(--text-muted);
 	font-size: 0.82rem;
 	line-height: 1.35;
+	max-width: 100%;
 }
 
 .merge-progress {
@@ -493,6 +495,7 @@ button {
 	.merge-status-card-compact,
 	.merge-action-button {
 		flex-basis: 100%;
+		max-width: 100%;
 		min-width: 0;
 	}
 

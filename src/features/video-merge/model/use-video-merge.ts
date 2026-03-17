@@ -33,6 +33,15 @@ type MergeWorkerResponse =
 			payload: MergeErrorResult;
 	  };
 
+function logMergeDebug(message: string, details?: unknown) {
+	if (details !== undefined) {
+		console.info(`[use-video-merge] ${message}`, details);
+		return;
+	}
+
+	console.info(`[use-video-merge] ${message}`);
+}
+
 function getMergedFileName(items: VideoItem[]) {
 	const firstFile = items[0];
 	const baseName = firstFile?.name.replace(/\.[^/.]+$/, "") || "merged-video";
@@ -52,6 +61,7 @@ export function useVideoMerge(items: VideoItem[]) {
 	);
 
 	useEffect(() => {
+		logMergeDebug("creating merge worker");
 		const worker = new Worker(
 			new URL(
 				"../../../widgets/shared/workers/video-merge.worker.ts",
@@ -62,6 +72,7 @@ export function useVideoMerge(items: VideoItem[]) {
 
 		worker.onmessage = (event: MessageEvent<MergeWorkerResponse>) => {
 			const message = event.data;
+			logMergeDebug("worker message received", message);
 
 			if (message.type === "progress") {
 				setProgress(message.payload);
@@ -89,9 +100,23 @@ export function useVideoMerge(items: VideoItem[]) {
 			}
 		};
 
+		worker.onerror = (event) => {
+			logMergeDebug("worker error event", {
+				message: event.message,
+				filename: event.filename,
+				lineno: event.lineno,
+				colno: event.colno,
+			});
+		};
+
+		worker.onmessageerror = (event) => {
+			logMergeDebug("worker message error", event);
+		};
+
 		workerRef.current = worker;
 
 		return () => {
+			logMergeDebug("terminating merge worker");
 			worker.terminate();
 			workerRef.current = null;
 		};
@@ -120,10 +145,16 @@ export function useVideoMerge(items: VideoItem[]) {
 
 	function startMerge() {
 		if (!workerRef.current || items.length < 2 || isMerging) {
+			logMergeDebug("startMerge skipped", {
+				hasWorker: Boolean(workerRef.current),
+				itemCount: items.length,
+				isMerging,
+			});
 			return;
 		}
 
 		if (precheckIssue) {
+			logMergeDebug("startMerge blocked by precheck", { precheckIssue });
 			setErrorMessage(precheckIssue);
 			return;
 		}
@@ -146,6 +177,7 @@ export function useVideoMerge(items: VideoItem[]) {
 			},
 		};
 
+		logMergeDebug("posting merge request", request);
 		workerRef.current.postMessage(request);
 	}
 

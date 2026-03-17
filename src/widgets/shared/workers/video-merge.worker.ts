@@ -35,10 +35,20 @@ type MergeWorkerResponse =
 
 const workerScope = self as DedicatedWorkerGlobalScope;
 
+function logWorkerDebug(message: string, details?: unknown) {
+	if (details !== undefined) {
+		console.info(`[video-merge-worker] ${message}`, details);
+		return;
+	}
+
+	console.info(`[video-merge-worker] ${message}`);
+}
+
 function postMessageSafe(
 	message: MergeWorkerResponse,
 	transfer?: Transferable[],
 ) {
+	logWorkerDebug("posting message", message);
 	workerScope.postMessage(message, transfer ?? []);
 }
 
@@ -65,8 +75,10 @@ function getExtension(fileName: string) {
 
 workerScope.onmessage = async (event: MessageEvent<MergeWorkerRequest>) => {
 	const message = event.data;
+	logWorkerDebug("received message", message);
 
 	if (message.type !== "merge") {
+		logWorkerDebug("ignored unknown message", message);
 		return;
 	}
 
@@ -85,6 +97,10 @@ workerScope.onmessage = async (event: MessageEvent<MergeWorkerRequest>) => {
 	const outputPath = `${workDirectory}/${outputFileName}`;
 
 	try {
+		logWorkerDebug("merge started", {
+			itemCount: items.length,
+			outputFileName,
+		});
 		postMessageSafe({
 			type: "progress",
 			payload: {
@@ -96,6 +112,7 @@ workerScope.onmessage = async (event: MessageEvent<MergeWorkerRequest>) => {
 		});
 
 		await ffmpeg.ensureLoaded();
+		logWorkerDebug("ffmpeg loaded");
 		await ffmpeg.createDir(workDirectory);
 
 		const entries = [];
@@ -106,6 +123,12 @@ workerScope.onmessage = async (event: MessageEvent<MergeWorkerRequest>) => {
 			if (!record) {
 				throw new Error(`Не найдено сохраненное видео: ${item.name}`);
 			}
+
+			logWorkerDebug("loaded source record", {
+				id: item.id,
+				name: item.name,
+				size: record.file.size,
+			});
 
 			const fileData = new Uint8Array(await record.file.arrayBuffer());
 			const inputName = `input-${index}${getExtension(record.item.name)}`;
@@ -127,6 +150,7 @@ workerScope.onmessage = async (event: MessageEvent<MergeWorkerRequest>) => {
 		}
 
 		const manifest = buildConcatManifest(entries);
+		logWorkerDebug("concat manifest built", { manifest });
 		await ffmpeg.writeFile(
 			`${workDirectory}/concat.txt`,
 			new TextEncoder().encode(manifest),
@@ -158,6 +182,10 @@ workerScope.onmessage = async (event: MessageEvent<MergeWorkerRequest>) => {
 			throw new Error("ffmpeg merge failed");
 		}
 
+		logWorkerDebug("ffmpeg merge succeeded", {
+			outputPath,
+		});
+
 		postMessageSafe({
 			type: "progress",
 			payload: {
@@ -168,6 +196,10 @@ workerScope.onmessage = async (event: MessageEvent<MergeWorkerRequest>) => {
 
 		const outputData = await ffmpeg.readFile(outputPath);
 		const arrayBuffer = outputData.slice().buffer;
+		logWorkerDebug("output file read", {
+			fileName: outputFileName,
+			size: outputData.byteLength,
+		});
 
 		postMessageSafe(
 			{
@@ -182,6 +214,11 @@ workerScope.onmessage = async (event: MessageEvent<MergeWorkerRequest>) => {
 	} catch (error) {
 		const logs = ffmpeg.getLastLogs();
 		const isCompatibilityError = inferCompatibilityError(logs);
+		logWorkerDebug("merge failed", {
+			error,
+			logs,
+			isCompatibilityError,
+		});
 		postMessageSafe({
 			type: "error",
 			payload: {
@@ -195,6 +232,7 @@ workerScope.onmessage = async (event: MessageEvent<MergeWorkerRequest>) => {
 			},
 		});
 	} finally {
+		logWorkerDebug("cleanup started", { workDirectory });
 		await ffmpeg.deleteFile(`${workDirectory}/concat.txt`);
 		await ffmpeg.deleteFile(outputPath);
 		await Promise.all(
@@ -205,5 +243,6 @@ workerScope.onmessage = async (event: MessageEvent<MergeWorkerRequest>) => {
 			),
 		);
 		await ffmpeg.deleteDir(workDirectory);
+		logWorkerDebug("cleanup finished", { workDirectory });
 	}
 };

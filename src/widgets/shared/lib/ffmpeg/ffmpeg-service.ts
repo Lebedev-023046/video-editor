@@ -18,6 +18,36 @@ function logFfmpegDebug(message: string, details?: unknown) {
 	console.info(`[ffmpeg-service] ${message}`);
 }
 
+async function inspectAsset(url: string, label: string) {
+	logFfmpegDebug(`asset check started: ${label}`, { url });
+
+	try {
+		const response = await fetch(url, {
+			method: "GET",
+		});
+		const contentLength = response.headers.get("content-length");
+		const contentType = response.headers.get("content-type");
+
+		logFfmpegDebug(`asset check response: ${label}`, {
+			url,
+			ok: response.ok,
+			status: response.status,
+			statusText: response.statusText,
+			contentType,
+			contentLength,
+		});
+
+		if (!response.ok) {
+			throw new Error(
+				`Не удалось загрузить ${label}: ${response.status} ${response.statusText}`.trim(),
+			);
+		}
+	} catch (error) {
+		logFfmpegDebug(`asset check failed: ${label}`, error);
+		throw error;
+	}
+}
+
 export interface BrowserFfmpegService {
 	ensureLoaded: () => Promise<void>;
 	writeFile: (path: string, data: Uint8Array) => Promise<void>;
@@ -71,6 +101,10 @@ export function createBrowserFfmpegService(
 				phase: "loading-ffmpeg",
 				message: "Загрузка ffmpeg.wasm...",
 			});
+
+			await inspectAsset(ffmpegWorkerUrl, "ffmpeg class worker");
+			await inspectAsset(ffmpegCoreUrl, "ffmpeg core");
+			await inspectAsset(ffmpegWasmUrl, "ffmpeg wasm");
 
 			try {
 				const isFirstLoad = await ffmpeg.load({

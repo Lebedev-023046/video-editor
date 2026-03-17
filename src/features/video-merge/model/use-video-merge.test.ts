@@ -1,7 +1,11 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { MergeErrorResult, MergeProgress, VideoItem } from "../../../entities/video-item";
+import type {
+	MergeErrorResult,
+	MergeProgress,
+	VideoItem,
+} from "../../../entities/video-item";
 
 class WorkerMock {
 	static instances: WorkerMock[] = [];
@@ -19,7 +23,11 @@ class WorkerMock {
 	}
 }
 
-function createItem(id: string, name = `${id}.mp4`, mimeType = "video/mp4"): VideoItem {
+function createItem(
+	id: string,
+	name = `${id}.mp4`,
+	mimeType = "video/mp4",
+): VideoItem {
 	return {
 		id,
 		name,
@@ -59,7 +67,10 @@ describe("useVideoMerge", () => {
 		});
 
 		rerender({
-			items: [createItem("a", "a.mp4", "video/mp4"), createItem("b", "b.webm", "video/webm")],
+			items: [
+				createItem("a", "a.mp4", "video/mp4"),
+				createItem("b", "b.webm", "video/webm"),
+			],
 		});
 
 		expect(result.current.canMerge).toBe(false);
@@ -95,6 +106,9 @@ describe("useVideoMerge", () => {
 				phase: "merging",
 				message: "Объединение видео...",
 				progress: 0.4,
+				processedItems: 2,
+				totalItems: 5,
+				mergeStage: "copy",
 			},
 		};
 
@@ -106,7 +120,9 @@ describe("useVideoMerge", () => {
 			expect(result.current.status).toEqual({
 				type: "processing",
 				label: "Объединение видео...",
-				progress: 0.4,
+				progress: 0.42,
+				processedItems: 2,
+				totalItems: 5,
 			});
 		});
 
@@ -132,9 +148,108 @@ describe("useVideoMerge", () => {
 		});
 	});
 
+	it("clears the previous result when the video list changes", async () => {
+		const { useVideoMerge } = await import("./use-video-merge");
+		const initialItems = [
+			createItem("a", "first.mp4"),
+			createItem("b", "second.mp4"),
+		];
+		const { result, rerender } = renderHook(
+			({ items }) => useVideoMerge(items),
+			{
+				initialProps: {
+					items: initialItems,
+				},
+			},
+		);
+		const worker = WorkerMock.instances[0];
+
+		act(() => {
+			result.current.startMerge();
+		});
+
+		act(() => {
+			worker.emit({
+				type: "success",
+				payload: {
+					fileName: "first-merged.mp4",
+					fileData: new Uint8Array([1, 2, 3]).buffer,
+				},
+			});
+		});
+
+		await waitFor(() => {
+			expect(result.current.resultFile?.name).toBe("first-merged.mp4");
+		});
+
+		rerender({
+			items: [createItem("a", "first.mp4")],
+		});
+
+		await waitFor(() => {
+			expect(result.current.resultFile).toBeNull();
+		});
+	});
+
+	it("ignores regressive progress updates from the worker", async () => {
+		const { useVideoMerge } = await import("./use-video-merge");
+		const items = [createItem("a", "first.mp4"), createItem("b", "second.mp4")];
+		const { result } = renderHook(() => useVideoMerge(items));
+		const worker = WorkerMock.instances[0];
+
+		act(() => {
+			result.current.startMerge();
+		});
+
+		act(() => {
+			worker.emit({
+				type: "progress",
+				payload: {
+					phase: "preparing",
+					message: "Подготовка файлов 2/2",
+					processedItems: 2,
+					totalItems: 2,
+				},
+			});
+		});
+
+		await waitFor(() => {
+			expect(result.current.status).toEqual({
+				type: "processing",
+				label: "Подготовка файлов 2/2",
+				progress: 0.3,
+				processedItems: 2,
+				totalItems: 2,
+			});
+		});
+
+		act(() => {
+			worker.emit({
+				type: "progress",
+				payload: {
+					phase: "loading-ffmpeg",
+					message: "Загрузка ffmpeg.wasm...",
+				},
+			});
+		});
+
+		await waitFor(() => {
+			expect(result.current.status).toEqual({
+				type: "processing",
+				label: "Подготовка файлов 2/2",
+				progress: 0.3,
+				processedItems: 2,
+				totalItems: 2,
+			});
+		});
+	});
+
 	it("surfaces worker failures and blocks incompatible start attempts", async () => {
 		const { useVideoMerge } = await import("./use-video-merge");
-		const compatibleItems = [createItem("a", "first.mp4"), createItem("b", "second.mp4")];
+		const compatibleItems = [
+			createItem("a", "first.mp4"),
+			createItem("b", "second.mp4"),
+		];
 		const { result } = renderHook(() => useVideoMerge(compatibleItems));
 		const worker = WorkerMock.instances[0];
 

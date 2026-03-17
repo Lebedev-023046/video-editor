@@ -9,6 +9,8 @@ export type MergeViewState =
 			type: "processing";
 			label: string;
 			progress?: number;
+			processedItems?: number;
+			totalItems?: number;
 	  }
 	| {
 			type: "success";
@@ -34,10 +36,14 @@ export function getMergeStatusView(
 	}
 
 	if (isMerging && progress) {
+		const normalizedProgress = getMergeProgressValue(progress);
+
 		return {
 			type: "processing",
 			label: progress.message,
-			progress: progress.progress,
+			progress: normalizedProgress,
+			processedItems: progress.processedItems,
+			totalItems: progress.totalItems,
 		};
 	}
 
@@ -66,4 +72,37 @@ export function getMergeStatusView(
 		type: "idle",
 		label: "Можно объединять",
 	};
+}
+
+export function getMergeProgressValue(progress: MergeProgress) {
+	if (progress.phase === "finalizing") {
+		return 1;
+	}
+
+	if (progress.phase === "loading-ffmpeg") {
+		return 0.05;
+	}
+
+	if (progress.phase === "preparing") {
+		const itemProgress =
+			typeof progress.processedItems === "number" &&
+			typeof progress.totalItems === "number" &&
+			progress.totalItems > 0
+				? progress.processedItems / progress.totalItems
+				: 0;
+
+		return itemProgress * 0.3;
+	}
+
+	if (progress.phase === "merging") {
+		const ffmpegProgress =
+			typeof progress.progress === "number" ? progress.progress : 0;
+		if (progress.mergeStage === "transcode") {
+			return 0.6 + ffmpegProgress * 0.35;
+		}
+
+		return 0.3 + ffmpegProgress * 0.3;
+	}
+
+	return undefined;
 }

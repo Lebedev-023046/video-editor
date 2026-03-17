@@ -5,7 +5,7 @@ import type {
 	MergeProgress,
 	VideoItem,
 } from "../../../entities/video-item";
-import { getMergeStatusView } from "./merge-status";
+import { getMergeProgressValue, getMergeStatusView } from "./merge-status";
 import { getStreamCopyCompatibilityIssue } from "./precheck";
 
 interface MergeWorkerRequest {
@@ -50,6 +50,7 @@ function getMergedFileName(items: VideoItem[]) {
 
 export function useVideoMerge(items: VideoItem[]) {
 	const workerRef = useRef<Worker | null>(null);
+	const lastItemsSignatureRef = useRef<string | null>(null);
 	const [progress, setProgress] = useState<MergeProgress | null>(null);
 	const [isMerging, setIsMerging] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -59,6 +60,27 @@ export function useVideoMerge(items: VideoItem[]) {
 		() => getStreamCopyCompatibilityIssue(items),
 		[items],
 	);
+	const itemsSignature = useMemo(
+		() => items.map((item) => `${item.id}:${item.order}`).join("|"),
+		[items],
+	);
+
+	useEffect(() => {
+		if (lastItemsSignatureRef.current === null) {
+			lastItemsSignatureRef.current = itemsSignature;
+			return;
+		}
+
+		if (lastItemsSignatureRef.current !== itemsSignature) {
+			logMergeDebug("items changed, clearing previous merge result", {
+				previous: lastItemsSignatureRef.current,
+				next: itemsSignature,
+			});
+			setResultFile(null);
+		}
+
+		lastItemsSignatureRef.current = itemsSignature;
+	}, [itemsSignature]);
 
 	useEffect(() => {
 		logMergeDebug("creating merge worker");
@@ -75,7 +97,30 @@ export function useVideoMerge(items: VideoItem[]) {
 			logMergeDebug("worker message received", message);
 
 			if (message.type === "progress") {
-				setProgress(message.payload);
+				setProgress((currentProgress) => {
+					if (!currentProgress) {
+						return message.payload;
+					}
+
+					const nextProgressValue = getMergeProgressValue(message.payload);
+					const currentProgressValue = getMergeProgressValue(currentProgress);
+
+					if (
+						typeof nextProgressValue === "number" &&
+						typeof currentProgressValue === "number" &&
+						nextProgressValue < currentProgressValue
+					) {
+						logMergeDebug("ignoring regressive progress update", {
+							currentProgress,
+							incomingProgress: message.payload,
+							currentProgressValue,
+							nextProgressValue,
+						});
+						return currentProgress;
+					}
+
+					return message.payload;
+				});
 				setIsMerging(true);
 				setErrorMessage(null);
 				return;

@@ -235,6 +235,26 @@ button {
 	max-width: 280px;
 }
 
+.merge-progress-stats {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.merge-progress-value {
+	color: var(--text);
+	font-size: 0.9rem;
+	font-weight: 700;
+	line-height: 1.2;
+}
+
+.merge-progress-count {
+	color: var(--text-muted);
+	font-size: 0.84rem;
+	line-height: 1.2;
+}
+
 .merge-progress-bar {
 	display: block;
 	height: 100%;
@@ -306,6 +326,14 @@ button {
 	align-items: center;
 	justify-content: space-between;
 	gap: 16px;
+}
+
+.section-heading-actions {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 12px;
+	flex-wrap: wrap;
 }
 
 .section-heading h2,

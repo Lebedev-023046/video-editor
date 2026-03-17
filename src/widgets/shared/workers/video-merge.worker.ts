@@ -151,11 +151,16 @@ workerScope.onmessage = async (event: MessageEvent<MergeWorkerRequest>) => {
 				message: "Объединение видео...",
 				processedItems: items.length,
 				totalItems: items.length,
+				mergeStage: "copy",
 			},
 		});
 
 		const exitCode = await ffmpeg.exec(
 			buildStreamCopyArgs(manifestPath, outputPath),
+			{
+				message: "Объединение видео...",
+				mergeStage: "copy",
+			},
 		);
 
 		if (exitCode !== 0) {
@@ -178,11 +183,16 @@ workerScope.onmessage = async (event: MessageEvent<MergeWorkerRequest>) => {
 					message: "Перекодирование для совместимости...",
 					processedItems: items.length,
 					totalItems: items.length,
+					mergeStage: "transcode",
 				},
 			});
 
 			const transcodeExitCode = await ffmpeg.exec(
 				buildTranscodeArgs(manifestPath, outputPath),
+				{
+					message: "Перекодирование для совместимости...",
+					mergeStage: "transcode",
+				},
 			);
 
 			if (transcodeExitCode !== 0) {

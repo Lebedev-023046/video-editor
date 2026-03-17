@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 
-import type { VideoItem } from "../../../entities/video-item";
+import type {
+	PersistedVideoRecord,
+	VideoItem,
+} from "../../../entities/video-item";
 import {
 	createVideoFileRepository,
 	createVideoItemFromFile,
@@ -14,12 +17,12 @@ interface UploadIssue {
 
 interface UploadState {
 	items: VideoItem[];
-	isRestoring: boolean;
 	isSaving: boolean;
 	errorMessage: string | null;
 	uploadIssues: UploadIssue[];
 	addFiles: (files: FileList | File[]) => Promise<void>;
 	removeItem: (id: string) => Promise<void>;
+	removeAllItems: () => Promise<void>;
 }
 
 function isVideoFile(file: File) {
@@ -41,7 +44,6 @@ export function useVideoUpload(): UploadState {
 		null,
 	);
 	const [items, setItems] = useState<VideoItem[]>([]);
-	const [isRestoring, setIsRestoring] = useState(true);
 	const [isSaving, setIsSaving] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [uploadIssues, setUploadIssues] = useState<UploadIssue[]>([]);
@@ -59,20 +61,16 @@ export function useVideoUpload(): UploadState {
 
 				setRepository(nextRepository);
 
-				const records = await nextRepository.getAll();
+				const records: PersistedVideoRecord[] = await nextRepository.getAll();
 
 				if (!isMounted) {
 					return;
 				}
 
-				setItems(records.map((record) => record.item));
+				setItems(records.map((record: PersistedVideoRecord) => record.item));
 			} catch {
 				if (isMounted) {
-					setErrorMessage("Не удалось восстановить сохраненные видео.");
-				}
-			} finally {
-				if (isMounted) {
-					setIsRestoring(false);
+					setErrorMessage("Не удалось инициализировать хранилище видео.");
 				}
 			}
 		}
@@ -138,32 +136,54 @@ export function useVideoUpload(): UploadState {
 
 		try {
 			await repository.delete(id);
-			const remainingRecords = await repository.getAll();
-			const normalizedRecords = remainingRecords.map((record, index) => ({
-				...record,
-				item: {
-					...record.item,
-					order: index,
-				},
-			}));
-
-			await Promise.all(
-				normalizedRecords.map((record) => repository.save(record)),
+			const remainingRecords: PersistedVideoRecord[] =
+				await repository.getAll();
+			const normalizedRecords = remainingRecords.map(
+				(record: PersistedVideoRecord, index) => ({
+					...record,
+					item: {
+						...record.item,
+						order: index,
+					},
+				}),
 			);
 
-			setItems(normalizedRecords.map((record) => record.item));
+			await Promise.all(
+				normalizedRecords.map((record: PersistedVideoRecord) =>
+					repository.save(record),
+				),
+			);
+
+			setItems(
+				normalizedRecords.map((record: PersistedVideoRecord) => record.item),
+			);
 		} catch {
 			setErrorMessage("Не удалось удалить видео.");
 		}
 	}
 
+	async function removeAllItems() {
+		if (!repository) {
+			return;
+		}
+
+		setErrorMessage(null);
+
+		try {
+			await repository.clear();
+			setItems([]);
+		} catch {
+			setErrorMessage("Не удалось удалить все видео.");
+		}
+	}
+
 	return {
 		items,
-		isRestoring,
 		isSaving,
 		errorMessage,
 		uploadIssues,
 		addFiles,
 		removeItem,
+		removeAllItems,
 	};
 }

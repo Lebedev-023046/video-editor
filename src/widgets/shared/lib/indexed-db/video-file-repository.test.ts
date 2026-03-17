@@ -1,66 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-type PersistedRecord = {
-	item: {
-		id: string;
-		order: number;
-	};
-	file: Blob;
-};
-
-type MockDatabase = {
-	objectStoreNames: {
-		contains: (storeName: string) => boolean;
-	};
-	createObjectStore: ReturnType<typeof vi.fn>;
-	put: ReturnType<typeof vi.fn>;
-	get: ReturnType<typeof vi.fn>;
-	getAll: ReturnType<typeof vi.fn>;
-	delete: ReturnType<typeof vi.fn>;
-	clear: ReturnType<typeof vi.fn>;
-};
-
-const databaseStore = new Map<string, PersistedRecord>();
-let storeCreated = false;
-
-function createMockDatabase(): MockDatabase {
-	return {
-		objectStoreNames: {
-			contains: () => storeCreated,
-		},
-		createObjectStore: vi.fn(() => {
-			storeCreated = true;
-		}),
-		put: vi.fn(async (_storeName: string, record: PersistedRecord) => {
-			databaseStore.set(record.item.id, record);
-		}),
-		get: vi.fn(async (_storeName: string, id: string) => databaseStore.get(id)),
-		getAll: vi.fn(async () => Array.from(databaseStore.values())),
-		delete: vi.fn(async (_storeName: string, id: string) => {
-			databaseStore.delete(id);
-		}),
-		clear: vi.fn(async () => {
-			databaseStore.clear();
-		}),
-	};
-}
-
-const openDBMock = vi.fn(
-	async (
-		_name: string,
-		_version: number,
-		options?: { upgrade?: (database: MockDatabase) => void },
-	) => {
-		const database = createMockDatabase();
-		options?.upgrade?.(database);
-		return database;
-	},
-);
-
-vi.mock("idb", () => ({
-	openDB: openDBMock,
-}));
-
 function createRecord(id: string, order: number) {
 	return {
 		item: {
@@ -77,16 +16,15 @@ function createRecord(id: string, order: number) {
 }
 
 describe("video file repository", () => {
-	beforeEach(() => {
-		databaseStore.clear();
-		storeCreated = false;
-		openDBMock.mockClear();
+	beforeEach(async () => {
+		vi.resetModules();
+		const { createVideoFileRepository } = await import("./video-file-repository");
+		const repository = await createVideoFileRepository();
+		await repository.clear();
 	});
 
-	it("saves, loads, deletes, and clears records", async () => {
-		vi.resetModules();
-		const { createVideoFileRepository } =
-			await import("./video-file-repository");
+	it("stores records in memory for the current session", async () => {
+		const { createVideoFileRepository } = await import("./video-file-repository");
 		const repository = await createVideoFileRepository();
 		const firstRecord = createRecord("first", 1);
 		const secondRecord = createRecord("second", 0);
@@ -106,19 +44,17 @@ describe("video file repository", () => {
 		expect(await repository.getAll()).toEqual([]);
 	});
 
-	it("creates the object store once and reuses the database promise", async () => {
-		vi.resetModules();
-		const { createVideoFileRepository } =
-			await import("./video-file-repository");
+	it("shares in-memory records across repository instances in the same tab", async () => {
+		const { createVideoFileRepository } = await import("./video-file-repository");
+		const firstRepository = await createVideoFileRepository();
+		const secondRepository = await createVideoFileRepository();
 
-		await createVideoFileRepository();
-		await createVideoFileRepository();
+		await firstRepository.save(createRecord("shared", 0));
 
-		expect(openDBMock).toHaveBeenCalledTimes(1);
+		expect((await secondRepository.get("shared"))?.item.id).toBe("shared");
 	});
 
-	it("builds a persisted item from a file", async () => {
-		vi.resetModules();
+	it("builds a video item from a file", async () => {
 		vi.useFakeTimers();
 		vi.setSystemTime(new Date("2026-03-17T12:00:00.000Z"));
 		const randomUuidSpy = vi

@@ -56,15 +56,16 @@ describe("EditorWorkspace", () => {
 
 	it("renders the ordered library, forwards uploads, and enables merge when ready", () => {
 		const addFiles = vi.fn().mockResolvedValue(undefined);
+		const removeAllItems = vi.fn().mockResolvedValue(undefined);
 		const startMerge = vi.fn();
 		useVideoUploadMock.mockReturnValue({
 			items: [createItem("a", 0), createItem("b", 1)],
-			isRestoring: false,
 			isSaving: false,
 			errorMessage: null,
 			uploadIssues: [],
 			addFiles,
 			removeItem: vi.fn(),
+			removeAllItems,
 		});
 		useVideoMergeMock.mockReturnValue({
 			canMerge: true,
@@ -88,16 +89,17 @@ describe("EditorWorkspace", () => {
 				files: [new File(["video"], "fresh.mp4", { type: "video/mp4" })],
 			},
 		});
+		fireEvent.click(screen.getByRole("button", { name: "Удалить все" }));
 		fireEvent.click(screen.getByRole("button", { name: "Объединить" }));
 
 		expect(addFiles).toHaveBeenCalledTimes(1);
+		expect(removeAllItems).toHaveBeenCalledTimes(1);
 		expect(startMerge).toHaveBeenCalledTimes(1);
 	});
 
 	it("shows upload issues and the download action when a merged file exists", () => {
 		useVideoUploadMock.mockReturnValue({
 			items: [createItem("a", 0), createItem("b", 1)],
-			isRestoring: false,
 			isSaving: false,
 			errorMessage: "Не удалось сохранить видео в браузере.",
 			uploadIssues: [
@@ -105,6 +107,7 @@ describe("EditorWorkspace", () => {
 			],
 			addFiles: vi.fn(),
 			removeItem: vi.fn(),
+			removeAllItems: vi.fn(),
 		});
 		useVideoMergeMock.mockReturnValue({
 			canMerge: false,

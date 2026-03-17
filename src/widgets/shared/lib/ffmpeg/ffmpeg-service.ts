@@ -6,6 +6,11 @@ interface MergeCallbacks {
 	onProgress?: (progress: MergeProgress) => void;
 }
 
+interface ExecProgressContext {
+	message: string;
+	mergeStage?: MergeProgress["mergeStage"];
+}
+
 function getPublicAssetUrl(path: string) {
 	const basePath =
 		import.meta.env.BASE_URL && import.meta.env.BASE_URL !== "./"
@@ -66,7 +71,7 @@ async function inspectAsset(url: string, label: string) {
 export interface BrowserFfmpegService {
 	ensureLoaded: () => Promise<void>;
 	writeFile: (path: string, data: Uint8Array) => Promise<void>;
-	exec: (args: string[]) => Promise<number>;
+	exec: (args: string[], context?: ExecProgressContext) => Promise<number>;
 	readFile: (path: string) => Promise<Uint8Array>;
 	createDir: (path: string) => Promise<void>;
 	deleteFile: (path: string) => Promise<void>;
@@ -79,6 +84,10 @@ export function createBrowserFfmpegService(
 ): BrowserFfmpegService {
 	const ffmpeg = new FFmpeg();
 	const logs: string[] = [];
+	let execProgressContext: ExecProgressContext = {
+		message: "Объединение видео...",
+		mergeStage: "copy",
+	};
 
 	logFfmpegDebug("service created", {
 		coreURL: ffmpegCoreUrl,
@@ -98,8 +107,9 @@ export function createBrowserFfmpegService(
 		logFfmpegDebug("progress event", { progress });
 		callbacks.onProgress?.({
 			phase: "merging",
-			message: "Объединение видео...",
+			message: execProgressContext.message,
 			progress,
+			mergeStage: execProgressContext.mergeStage,
 		});
 	});
 
@@ -141,7 +151,11 @@ export function createBrowserFfmpegService(
 			});
 			await ffmpeg.writeFile(path, data);
 		},
-		async exec(args) {
+		async exec(args, context) {
+			execProgressContext = {
+				message: context?.message ?? "Объединение видео...",
+				mergeStage: context?.mergeStage ?? "copy",
+			};
 			logFfmpegDebug("exec start", { args });
 			const exitCode = await ffmpeg.exec(args);
 			logFfmpegDebug("exec done", { args, exitCode });

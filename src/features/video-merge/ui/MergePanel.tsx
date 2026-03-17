@@ -19,7 +19,14 @@ export function MergePanel({
 }: MergePanelProps) {
 	const progress =
 		status.type === "processing" && typeof status.progress === "number"
-			? Math.max(6, Math.min(100, Math.round(status.progress * 100)))
+			? Math.max(0, Math.min(100, Math.round(status.progress * 100)))
+			: null;
+	const countLabel =
+		status.type === "processing" &&
+		typeof status.processedItems === "number" &&
+		typeof status.totalItems === "number" &&
+		status.totalItems > 0
+			? `${status.processedItems}/${status.totalItems} видео`
 			: null;
 
 	return (
@@ -46,6 +53,16 @@ export function MergePanel({
 						</p>
 					) : null}
 				</div>
+				{progress !== null || countLabel ? (
+					<div className="merge-progress-stats">
+						{progress !== null ? (
+							<span className="merge-progress-value">{progress}%</span>
+						) : null}
+						{countLabel ? (
+							<span className="merge-progress-count">{countLabel}</span>
+						) : null}
+					</div>
+				) : null}
 				{progress !== null ? (
 					<div
 						className="merge-progress"

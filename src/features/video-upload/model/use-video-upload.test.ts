@@ -1,7 +1,10 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { PersistedVideoRecord, VideoItem } from "../../../entities/video-item";
+import type {
+	PersistedVideoRecord,
+	VideoItem,
+} from "../../../entities/video-item";
 
 const createVideoFileRepositoryMock = vi.fn();
 const createVideoItemFromFileMock = vi.fn();
@@ -36,24 +39,22 @@ describe("useVideoUpload", () => {
 		createVideoItemFromFileMock.mockReset();
 	});
 
-	it("restores persisted items on mount", async () => {
+	it("starts empty and uses the repository instance for the current tab", async () => {
 		createVideoFileRepositoryMock.mockResolvedValue({
-			getAll: vi.fn().mockResolvedValue([
-				createRecord(createItem("b", 1)),
-				createRecord(createItem("a", 0)),
-			]),
+			getAll: vi.fn().mockResolvedValue([]),
 			save: vi.fn(),
 			delete: vi.fn(),
+			clear: vi.fn(),
 		});
 
 		const { useVideoUpload } = await import("./use-video-upload");
 		const { result } = renderHook(() => useVideoUpload());
 
 		await waitFor(() => {
-			expect(result.current.isRestoring).toBe(false);
+			expect(createVideoFileRepositoryMock).toHaveBeenCalledTimes(1);
 		});
 
-		expect(result.current.items.map((item) => item.id)).toEqual(["b", "a"]);
+		expect(result.current.items).toEqual([]);
 		expect(result.current.errorMessage).toBeNull();
 	});
 
@@ -63,16 +64,18 @@ describe("useVideoUpload", () => {
 			getAll: vi.fn().mockResolvedValue([]),
 			save: saveMock,
 			delete: vi.fn(),
+			clear: vi.fn(),
 		});
-		createVideoItemFromFileMock.mockImplementation((file: File, order: number) =>
-			createItem(`item-${order}`, order, file.name),
+		createVideoItemFromFileMock.mockImplementation(
+			(file: File, order: number) =>
+				createItem(`item-${order}`, order, file.name),
 		);
 
 		const { useVideoUpload } = await import("./use-video-upload");
 		const { result } = renderHook(() => useVideoUpload());
 
 		await waitFor(() => {
-			expect(result.current.isRestoring).toBe(false);
+			expect(createVideoFileRepositoryMock).toHaveBeenCalledTimes(1);
 		});
 
 		const files = [
@@ -114,6 +117,7 @@ describe("useVideoUpload", () => {
 			getAll: getAllMock,
 			save: saveMock,
 			delete: deleteMock,
+			clear: vi.fn(),
 		});
 
 		const { useVideoUpload } = await import("./use-video-upload");
@@ -133,5 +137,36 @@ describe("useVideoUpload", () => {
 			["b", 0],
 			["c", 1],
 		]);
+	});
+
+	it("clears all items from storage and local state", async () => {
+		const clearMock = vi.fn().mockResolvedValue(undefined);
+
+		createVideoFileRepositoryMock.mockResolvedValue({
+			getAll: vi
+				.fn()
+				.mockResolvedValue([
+					createRecord(createItem("a", 0)),
+					createRecord(createItem("b", 1)),
+				]),
+			save: vi.fn(),
+			delete: vi.fn(),
+			clear: clearMock,
+		});
+
+		const { useVideoUpload } = await import("./use-video-upload");
+		const { result } = renderHook(() => useVideoUpload());
+
+		await waitFor(() => {
+			expect(result.current.items).toHaveLength(2);
+		});
+
+		await act(async () => {
+			await result.current.removeAllItems();
+		});
+
+		expect(clearMock).toHaveBeenCalledTimes(1);
+		expect(result.current.items).toEqual([]);
+		expect(result.current.errorMessage).toBeNull();
 	});
 });

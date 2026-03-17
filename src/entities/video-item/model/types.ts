@@ -36,6 +36,7 @@ export interface MergeProgress {
 	progress?: number;
 	processedItems?: number;
 	totalItems?: number;
+	mergeStage?: "copy" | "transcode";
 }
 
 export interface MergeSuccessResult {

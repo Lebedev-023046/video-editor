@@ -3,14 +3,16 @@ import { formatFileSize } from "../../shared/lib/format-file-size";
 
 interface VideoLibraryPanelProps {
 	items: VideoItem[];
-	isRestoring: boolean;
+	isSaving: boolean;
 	onRemove: (id: string) => void;
+	onRemoveAll: () => void;
 }
 
 export function VideoLibraryPanel({
 	items,
-	isRestoring,
+	isSaving,
 	onRemove,
+	onRemoveAll,
 }: VideoLibraryPanelProps) {
 	return (
 		<section className="card section-card">
@@ -18,12 +20,24 @@ export function VideoLibraryPanel({
 				<div>
 					<h2>Видео</h2>
 				</div>
-				<span className="status-pill">{items.length}</span>
+				<div className="section-heading-actions">
+					{items.length > 0 ? (
+						<button
+							type="button"
+							className="secondary-button danger-button"
+							disabled={isSaving}
+							onClick={() => {
+								void onRemoveAll();
+							}}
+						>
+							Удалить все
+						</button>
+					) : null}
+					<span className="status-pill">{items.length}</span>
+				</div>
 			</div>
 
-			{isRestoring ? <p className="meta-copy">Восстановление...</p> : null}
-
-			{!isRestoring && items.length === 0 ? (
+			{items.length === 0 ? (
 				<div className="empty-state">
 					<strong>Пока пусто</strong>
 					<p>Добавьте видео.</p>

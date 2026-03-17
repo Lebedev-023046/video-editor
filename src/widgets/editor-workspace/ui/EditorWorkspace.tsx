@@ -10,17 +10,17 @@ import { VideoLibraryPanel } from "./VideoLibraryPanel";
 export function EditorWorkspace() {
 	const {
 		items,
-		isRestoring,
 		isSaving,
 		errorMessage,
 		uploadIssues,
 		addFiles,
 		removeItem,
+		removeAllItems,
 	} = useVideoUpload();
 	const { canMerge, isMerging, precheckIssue, resultFile, status, startMerge } =
 		useVideoMerge(items);
 
-	const shouldShowLibrary = items.length > 0 || isRestoring;
+	const shouldShowLibrary = items.length > 0;
 	const shouldShowMessages = Boolean(errorMessage) || uploadIssues.length > 0;
 	const totalSize = items.reduce((sum, item) => sum + item.size, 0);
 	const totalSizeLabel =
@@ -30,7 +30,7 @@ export function EditorWorkspace() {
 		<div className="editor-page">
 			<section className="upload-shell">
 				<VideoUploadZone
-					disabled={isRestoring}
+					disabled={false}
 					isSaving={isSaving}
 					onFilesSelected={(files) => {
 						if (files) {
@@ -64,14 +64,15 @@ export function EditorWorkspace() {
 				<section className="workspace-grid">
 					<VideoLibraryPanel
 						items={items}
-						isRestoring={isRestoring}
+						isSaving={isSaving}
 						onRemove={(id) => removeItem(id)}
+						onRemoveAll={() => removeAllItems()}
 					/>
 				</section>
 			) : null}
 
 			<MergePanel
-				canMerge={canMerge && !isSaving && !isRestoring}
+				canMerge={canMerge && !isSaving}
 				isMerging={isMerging}
 				status={
 					isSaving ? { type: "processing", label: "Сохранение..." } : status

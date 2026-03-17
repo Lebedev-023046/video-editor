@@ -9,6 +9,7 @@ import { buildConcatManifest, createBrowserFfmpegService } from "../lib/ffmpeg";
 import {
 	buildStreamCopyArgs,
 	buildTranscodeArgs,
+	getMergeFailureMessage,
 	inferCompatibilityError,
 } from "./merge-commands";
 
@@ -243,13 +244,13 @@ workerScope.onmessage = async (event: MessageEvent<MergeWorkerRequest>) => {
 					isCompatibilityError || fallbackAttempted
 						? "compatibility"
 						: "worker",
-				message: fallbackAttempted
-					? "Не удалось объединить видео даже после перекодирования. Проверьте, что файлы не повреждены и содержат поддерживаемые потоки."
-					: isCompatibilityError
+				message:
+					isCompatibilityError && !fallbackAttempted
 						? "Видео не удалось объединить без перекодирования. Выполняется только безопасное объединение совместимых файлов."
-						: error instanceof Error
-							? error.message
-							: "Не удалось выполнить объединение видео.",
+						: (getMergeFailureMessage(logs, fallbackAttempted) ??
+							(error instanceof Error
+								? error.message
+								: "Не удалось выполнить объединение видео.")),
 			},
 		});
 	} finally {

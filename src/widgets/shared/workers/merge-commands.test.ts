@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
-    buildStreamCopyArgs,
-    buildTranscodeArgs,
-    inferCompatibilityError,
+	buildStreamCopyArgs,
+	buildTranscodeArgs,
+	getMergeFailureMessage,
+	inferCompatibilityError,
 } from "./merge-commands";
 
 describe("merge-commands", () => {
@@ -62,10 +63,30 @@ describe("merge-commands", () => {
 			]),
 		).toBe(true);
 		expect(
-			inferCompatibilityError(["Non monotonically increasing DTS in output stream"]),
+			inferCompatibilityError([
+				"Non monotonically increasing DTS in output stream",
+			]),
 		).toBe(true);
 		expect(inferCompatibilityError(["some unrelated ffmpeg failure"])).toBe(
 			false,
 		);
+	});
+
+	it("returns a specific memory-limit message for browser ffmpeg failures", () => {
+		expect(
+			getMergeFailureMessage(
+				["Aborted(out of memory)", "RuntimeError: memory access out of bounds"],
+				true,
+			),
+		).toContain("нехватки памяти");
+	});
+
+	it("returns a specific file-content message when ffmpeg reports broken input", () => {
+		expect(
+			getMergeFailureMessage(
+				["[mov,mp4,m4a,3gp,3g2,mj2 @ 0x1] moov atom not found"],
+				true,
+			),
+		).toContain("moov atom not found");
 	});
 });

@@ -4,5 +4,5 @@ coverage
 .DS_Store
 *.local
 *.tsbuildinfo
-ai-dex-tasks
+ai-dev-tasks
 tasks

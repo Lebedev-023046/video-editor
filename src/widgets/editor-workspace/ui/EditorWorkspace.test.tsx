@@ -80,6 +80,7 @@ describe("EditorWorkspace", () => {
 
 		expect(screen.getByText("clip-a.mp4")).toBeInTheDocument();
 		expect(screen.getByText("clip-b.mp4")).toBeInTheDocument();
+		expect(screen.getByText("Общий размер: 2 KB")).toBeInTheDocument();
 		expect(screen.getByRole("button", { name: "Объединить" })).toBeEnabled();
 
 		fireEvent.change(fileInput as HTMLInputElement, {

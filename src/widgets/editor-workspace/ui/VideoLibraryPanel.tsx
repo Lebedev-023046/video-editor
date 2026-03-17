@@ -1,17 +1,10 @@
 import type { VideoItem } from "../../../entities/video-item";
+import { formatFileSize } from "../../shared/lib/format-file-size";
 
 interface VideoLibraryPanelProps {
 	items: VideoItem[];
 	isRestoring: boolean;
 	onRemove: (id: string) => void;
-}
-
-function formatFileSize(size: number) {
-	if (size < 1024 * 1024) {
-		return `${Math.round(size / 1024)} KB`;
-	}
-
-	return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export function VideoLibraryPanel({

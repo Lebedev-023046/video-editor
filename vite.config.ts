@@ -4,6 +4,9 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
 	base: "./",
 	plugins: [react()],
+	optimizeDeps: {
+		exclude: ["@ffmpeg/ffmpeg"],
+	},
 	test: {
 		environment: "jsdom",
 		globals: true,

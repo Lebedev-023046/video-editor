@@ -7,6 +7,11 @@ import type {
 } from "../../../entities/video-item";
 import { buildConcatManifest, createBrowserFfmpegService } from "../lib/ffmpeg";
 import { createVideoFileRepository } from "../lib/indexed-db";
+import {
+	buildStreamCopyArgs,
+	buildTranscodeArgs,
+	inferCompatibilityError,
+} from "./merge-commands";
 
 interface MergeWorkerRequest {
 	type: "merge";
@@ -52,22 +57,6 @@ function postMessageSafe(
 	workerScope.postMessage(message, transfer ?? []);
 }
 
-function inferCompatibilityError(logs: string[]) {
-	const text = logs.join("\n").toLowerCase();
-
-	if (
-		text.includes("invalid data found") ||
-		text.includes("non monotonically increasing dts") ||
-		text.includes("concat") ||
-		text.includes("could not find codec parameters") ||
-		text.includes("incorrect codec parameters")
-	) {
-		return true;
-	}
-
-	return false;
-}
-
 function getExtension(fileName: string) {
 	const match = /\.([a-z0-9]+)$/i.exec(fileName);
 	return match ? `.${match[1]}` : ".mp4";
@@ -95,6 +84,8 @@ workerScope.onmessage = async (event: MessageEvent<MergeWorkerRequest>) => {
 
 	const workDirectory = `/merge-${Date.now()}`;
 	const outputPath = `${workDirectory}/${outputFileName}`;
+	const manifestPath = `${workDirectory}/concat.txt`;
+	let fallbackAttempted = false;
 
 	try {
 		logWorkerDebug("merge started", {
@@ -151,10 +142,7 @@ workerScope.onmessage = async (event: MessageEvent<MergeWorkerRequest>) => {
 
 		const manifest = buildConcatManifest(entries);
 		logWorkerDebug("concat manifest built", { manifest });
-		await ffmpeg.writeFile(
-			`${workDirectory}/concat.txt`,
-			new TextEncoder().encode(manifest),
-		);
+		await ffmpeg.writeFile(manifestPath, new TextEncoder().encode(manifest));
 
 		postMessageSafe({
 			type: "progress",
@@ -166,20 +154,40 @@ workerScope.onmessage = async (event: MessageEvent<MergeWorkerRequest>) => {
 			},
 		});
 
-		const exitCode = await ffmpeg.exec([
-			"-f",
-			"concat",
-			"-safe",
-			"0",
-			"-i",
-			`${workDirectory}/concat.txt`,
-			"-c",
-			"copy",
-			outputPath,
-		]);
+		const exitCode = await ffmpeg.exec(
+			buildStreamCopyArgs(manifestPath, outputPath),
+		);
 
 		if (exitCode !== 0) {
-			throw new Error("ffmpeg merge failed");
+			const copyLogs = ffmpeg.getLastLogs();
+			const isCompatibilityError = inferCompatibilityError(copyLogs);
+			logWorkerDebug("stream copy failed", {
+				isCompatibilityError,
+				logs: copyLogs,
+			});
+
+			if (!isCompatibilityError) {
+				throw new Error("ffmpeg merge failed");
+			}
+
+			fallbackAttempted = true;
+			postMessageSafe({
+				type: "progress",
+				payload: {
+					phase: "merging",
+					message: "Перекодирование для совместимости...",
+					processedItems: items.length,
+					totalItems: items.length,
+				},
+			});
+
+			const transcodeExitCode = await ffmpeg.exec(
+				buildTranscodeArgs(manifestPath, outputPath),
+			);
+
+			if (transcodeExitCode !== 0) {
+				throw new Error("ffmpeg transcode merge failed");
+			}
 		}
 
 		logWorkerDebug("ffmpeg merge succeeded", {
@@ -213,27 +221,34 @@ workerScope.onmessage = async (event: MessageEvent<MergeWorkerRequest>) => {
 		);
 	} catch (error) {
 		const logs = ffmpeg.getLastLogs();
-		const isCompatibilityError = inferCompatibilityError(logs);
+		const isCompatibilityError =
+			!fallbackAttempted && inferCompatibilityError(logs);
 		logWorkerDebug("merge failed", {
 			error,
 			logs,
 			isCompatibilityError,
+			fallbackAttempted,
 		});
 		postMessageSafe({
 			type: "error",
 			payload: {
 				type: "error",
-				code: isCompatibilityError ? "compatibility" : "worker",
-				message: isCompatibilityError
-					? "Видео не удалось объединить без перекодирования. Проверьте, что файлы совместимы по контейнеру и кодекам."
-					: error instanceof Error
-						? error.message
-						: "Не удалось выполнить объединение видео.",
+				code:
+					isCompatibilityError || fallbackAttempted
+						? "compatibility"
+						: "worker",
+				message: fallbackAttempted
+					? "Не удалось объединить видео даже после перекодирования. Проверьте, что файлы не повреждены и содержат поддерживаемые потоки."
+					: isCompatibilityError
+						? "Видео не удалось объединить без перекодирования. Выполняется только безопасное объединение совместимых файлов."
+						: error instanceof Error
+							? error.message
+							: "Не удалось выполнить объединение видео.",
 			},
 		});
 	} finally {
 		logWorkerDebug("cleanup started", { workDirectory });
-		await ffmpeg.deleteFile(`${workDirectory}/concat.txt`);
+		await ffmpeg.deleteFile(manifestPath);
 		await ffmpeg.deleteFile(outputPath);
 		await Promise.all(
 			items.map((item, index) =>

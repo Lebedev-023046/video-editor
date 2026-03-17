@@ -5,6 +5,7 @@ interface MergePanelProps {
 	isMerging: boolean;
 	status: MergeViewState;
 	hint?: string | null;
+	totalSizeLabel?: string | null;
 	onMerge: () => void;
 }
 
@@ -13,6 +14,7 @@ export function MergePanel({
 	isMerging,
 	status,
 	hint,
+	totalSizeLabel,
 	onMerge,
 }: MergePanelProps) {
 	const progress =
@@ -59,7 +61,12 @@ export function MergePanel({
 						/>
 					</div>
 				) : null}
-				{hint ? <span className="merge-hint">{hint}</span> : null}
+				<div className="merge-status-meta">
+					{hint ? <span className="merge-hint">{hint}</span> : null}
+					{totalSizeLabel ? (
+						<span className="merge-total-size">{totalSizeLabel}</span>
+					) : null}
+				</div>
 			</div>
 			<button
 				type="button"

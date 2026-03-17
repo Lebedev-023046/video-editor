@@ -6,16 +6,17 @@ interface MergeCallbacks {
 	onProgress?: (progress: MergeProgress) => void;
 }
 
-const ffmpegCoreUrl = new URL(
-	/* @vite-ignore */
-	"../ffmpeg/ffmpeg-core.js",
-	import.meta.url,
-).toString();
-const ffmpegWasmUrl = new URL(
-	/* @vite-ignore */
-	"../ffmpeg/ffmpeg-core.wasm",
-	import.meta.url,
-).toString();
+function getPublicAssetUrl(path: string) {
+	const basePath =
+		import.meta.env.BASE_URL && import.meta.env.BASE_URL !== "./"
+			? import.meta.env.BASE_URL
+			: "/";
+
+	return new URL(`${basePath}${path}`, self.location.origin).toString();
+}
+
+const ffmpegCoreUrl = getPublicAssetUrl("ffmpeg/ffmpeg-core.js");
+const ffmpegWasmUrl = getPublicAssetUrl("ffmpeg/ffmpeg-core.wasm");
 
 function logFfmpegDebug(message: string, details?: unknown) {
 	if (details !== undefined) {
@@ -48,6 +49,12 @@ async function inspectAsset(url: string, label: string) {
 		if (!response.ok) {
 			throw new Error(
 				`Не удалось загрузить ${label}: ${response.status} ${response.statusText}`.trim(),
+			);
+		}
+
+		if (contentType?.includes("text/html")) {
+			throw new Error(
+				`Сервер вернул HTML вместо ${label}. Проверьте путь к ${label}.`,
 			);
 		}
 	} catch (error) {

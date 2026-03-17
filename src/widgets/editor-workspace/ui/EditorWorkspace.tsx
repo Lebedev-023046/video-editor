@@ -4,6 +4,7 @@ import {
 	VideoUploadZone,
 	useVideoUpload,
 } from "../../../features/video-upload";
+import { formatFileSize } from "../../shared/lib/format-file-size";
 import { VideoLibraryPanel } from "./VideoLibraryPanel";
 
 export function EditorWorkspace() {
@@ -21,6 +22,9 @@ export function EditorWorkspace() {
 
 	const shouldShowLibrary = items.length > 0 || isRestoring;
 	const shouldShowMessages = Boolean(errorMessage) || uploadIssues.length > 0;
+	const totalSize = items.reduce((sum, item) => sum + item.size, 0);
+	const totalSizeLabel =
+		items.length > 0 ? `Общий размер: ${formatFileSize(totalSize)}` : null;
 
 	return (
 		<div className="editor-page">
@@ -76,6 +80,7 @@ export function EditorWorkspace() {
 					precheckIssue ??
 					"Лучше использовать одинаковые MP4 с совпадающими кодеками."
 				}
+				totalSizeLabel={totalSizeLabel}
 				onMerge={startMerge}
 			/>
 			<DownloadResult file={resultFile} />

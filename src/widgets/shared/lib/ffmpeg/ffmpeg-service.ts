@@ -1,7 +1,6 @@
-import ffmpegWasmUrl from "@ffmpeg/core/wasm?url";
-import ffmpegCoreUrl from "@ffmpeg/core?url";
+import ffmpegCoreUrl from "@ffmpeg/core/dist/umd/ffmpeg-core.js?url";
+import ffmpegWasmUrl from "@ffmpeg/core/dist/umd/ffmpeg-core.wasm?url";
 import { FFmpeg } from "@ffmpeg/ffmpeg";
-import ffmpegWorkerUrl from "@ffmpeg/ffmpeg/worker?url";
 
 import type { MergeProgress } from "../../../../entities/video-item";
 
@@ -68,7 +67,6 @@ export function createBrowserFfmpegService(
 	logFfmpegDebug("service created", {
 		coreURL: ffmpegCoreUrl,
 		wasmURL: ffmpegWasmUrl,
-		classWorkerURL: ffmpegWorkerUrl,
 	});
 
 	ffmpeg.on("log", ({ message }) => {
@@ -102,13 +100,11 @@ export function createBrowserFfmpegService(
 				message: "Загрузка ffmpeg.wasm...",
 			});
 
-			await inspectAsset(ffmpegWorkerUrl, "ffmpeg class worker");
 			await inspectAsset(ffmpegCoreUrl, "ffmpeg core");
 			await inspectAsset(ffmpegWasmUrl, "ffmpeg wasm");
 
 			try {
 				const isFirstLoad = await ffmpeg.load({
-					classWorkerURL: ffmpegWorkerUrl,
 					coreURL: ffmpegCoreUrl,
 					wasmURL: ffmpegWasmUrl,
 				});

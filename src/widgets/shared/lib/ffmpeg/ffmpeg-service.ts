@@ -2,6 +2,7 @@ import ffmpegWasmUrl from "@ffmpeg/core/wasm?url";
 import ffmpegCoreUrl from "@ffmpeg/core?url";
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import ffmpegWorkerUrl from "@ffmpeg/ffmpeg/worker?url";
+import { toBlobURL } from "@ffmpeg/util";
 
 import type { MergeProgress } from "../../../../entities/video-item";
 
@@ -18,6 +19,53 @@ export interface BrowserFfmpegService {
 	deleteFile: (path: string) => Promise<void>;
 	deleteDir: (path: string) => Promise<void>;
 	getLastLogs: () => string[];
+}
+
+const FFMPEG_LOAD_TIMEOUT_MS = 30_000;
+
+let ffmpegAssetUrlsPromise: Promise<{
+	classWorkerURL: string;
+	coreURL: string;
+	wasmURL: string;
+}> | null = null;
+
+async function getFfmpegAssetUrls() {
+	if (!ffmpegAssetUrlsPromise) {
+		ffmpegAssetUrlsPromise = Promise.all([
+			toBlobURL(ffmpegWorkerUrl, "text/javascript"),
+			toBlobURL(ffmpegCoreUrl, "text/javascript"),
+			toBlobURL(ffmpegWasmUrl, "application/wasm"),
+		]).then(([classWorkerURL, coreURL, wasmURL]) => ({
+			classWorkerURL,
+			coreURL,
+			wasmURL,
+		}));
+	}
+
+	return ffmpegAssetUrlsPromise;
+}
+
+async function withLoadTimeout<T>(loadPromise: Promise<T>) {
+	let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+	try {
+		return await Promise.race([
+			loadPromise,
+			new Promise<never>((_, reject) => {
+				timeoutId = setTimeout(() => {
+					reject(
+						new Error(
+							"Загрузка ffmpeg.wasm заняла слишком много времени. Проверьте доступность файлов приложения и попробуйте еще раз.",
+						),
+					);
+				}, FFMPEG_LOAD_TIMEOUT_MS);
+			}),
+		]);
+	} finally {
+		if (timeoutId) {
+			clearTimeout(timeoutId);
+		}
+	}
 }
 
 export function createBrowserFfmpegService(
@@ -52,11 +100,15 @@ export function createBrowserFfmpegService(
 				message: "Загрузка ffmpeg.wasm...",
 			});
 
-			await ffmpeg.load({
-				classWorkerURL: ffmpegWorkerUrl,
-				coreURL: ffmpegCoreUrl,
-				wasmURL: ffmpegWasmUrl,
-			});
+			const { classWorkerURL, coreURL, wasmURL } = await getFfmpegAssetUrls();
+
+			await withLoadTimeout(
+				ffmpeg.load({
+					classWorkerURL,
+					coreURL,
+					wasmURL,
+				}),
+			);
 		},
 		async writeFile(path, data) {
 			await ffmpeg.writeFile(path, data);

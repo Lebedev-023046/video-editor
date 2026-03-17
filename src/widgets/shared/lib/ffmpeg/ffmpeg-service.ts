@@ -1,5 +1,3 @@
-import ffmpegCoreUrl from "@ffmpeg/core/dist/umd/ffmpeg-core.js?url";
-import ffmpegWasmUrl from "@ffmpeg/core/dist/umd/ffmpeg-core.wasm?url";
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 
 import type { MergeProgress } from "../../../../entities/video-item";
@@ -7,6 +5,17 @@ import type { MergeProgress } from "../../../../entities/video-item";
 interface MergeCallbacks {
 	onProgress?: (progress: MergeProgress) => void;
 }
+
+const ffmpegCoreUrl = new URL(
+	/* @vite-ignore */
+	"../ffmpeg/ffmpeg-core.js",
+	import.meta.url,
+).toString();
+const ffmpegWasmUrl = new URL(
+	/* @vite-ignore */
+	"../ffmpeg/ffmpeg-core.wasm",
+	import.meta.url,
+).toString();
 
 function logFfmpegDebug(message: string, details?: unknown) {
 	if (details !== undefined) {

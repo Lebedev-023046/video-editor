@@ -202,4 +202,45 @@ describe("EditorWorkspace", () => {
 			screen.getByRole("button", { name: "Объединить" }),
 		).toBeInTheDocument();
 	});
+
+	it("preserves the video-side status when returning from the image tab", () => {
+		const items = [createItem("a", 0), createItem("b", 1)];
+		useVideoUploadMock.mockReturnValue({
+			items,
+			sourceFilesById: createSourceFilesById(items),
+			isSaving: false,
+			errorMessage: "Не удалось сохранить видео в браузере.",
+			uploadIssues: [],
+			addFiles: vi.fn(),
+			removeItem: vi.fn(),
+			removeAllItems: vi.fn(),
+			reorderItems: vi.fn(),
+		});
+		useVideoMergeMock.mockReturnValue({
+			canMerge: false,
+			isMerging: false,
+			precheckIssue: null,
+			resultFile: new File(["merged"], "clip-a-merged.mp4", {
+				type: "video/mp4",
+			}),
+			status: createStatus({ type: "success", label: "" }),
+			startMerge: vi.fn(),
+		});
+
+		render(<EditorWorkspace />);
+
+		fireEvent.click(screen.getByRole("button", { name: "Изображения" }));
+		expect(
+			screen.getByRole("heading", { name: "Конвертация изображений" }),
+		).toBeInTheDocument();
+
+		fireEvent.click(screen.getByRole("button", { name: "Видео" }));
+
+		expect(
+			screen.getByText("Не удалось сохранить видео в браузере."),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("link", { name: "Скачать результат" }),
+		).toHaveAttribute("download", "clip-a-merged.mp4");
+	});
 });

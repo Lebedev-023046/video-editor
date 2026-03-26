@@ -87,6 +87,120 @@ button {
 	display: grid;
 }
 
+.workspace-tabs {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px;
+	border-radius: 999px;
+	border: 1px solid var(--border);
+	background: var(--surface);
+	box-shadow: var(--shadow);
+	width: fit-content;
+	max-width: 100%;
+}
+
+.workspace-tab {
+	border: 0;
+	background: transparent;
+	color: var(--text-muted);
+	border-radius: 999px;
+	padding: 10px 16px;
+	font-weight: 600;
+	transition:
+		background-color 0.15s ease,
+		color 0.15s ease,
+		transform 0.15s ease;
+}
+
+.workspace-tab:hover {
+	color: var(--text);
+}
+
+.workspace-tab-active {
+	background: var(--accent);
+	color: var(--background);
+}
+
+.image-convert-card {
+	min-height: 260px;
+}
+
+.image-convert-layout {
+	display: grid;
+	gap: 16px;
+}
+
+.image-convert-hero {
+	display: grid;
+	gap: 14px;
+}
+
+.image-convert-hero h2 {
+	margin: 0;
+	font-size: clamp(1.7rem, 4vw, 2.4rem);
+	letter-spacing: -0.04em;
+}
+
+.image-convert-hero p {
+	margin: 0;
+	max-width: 60ch;
+	color: var(--text-muted);
+	line-height: 1.6;
+}
+
+.format-switch {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	width: fit-content;
+	max-width: 100%;
+	padding: 6px;
+	border-radius: 999px;
+	background: var(--surface-muted);
+}
+
+.image-session-card,
+.image-session-copy {
+	display: grid;
+	gap: 8px;
+}
+
+.image-session-copy p {
+	margin: 0;
+	color: var(--text-muted);
+}
+
+.image-session-stats {
+	display: flex;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.image-queue-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	gap: 12px;
+}
+
+.image-queue-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 14px 16px;
+	border-radius: 18px;
+	border: 1px solid var(--border);
+	background: var(--surface-muted);
+}
+
+.image-queue-item p {
+	margin: 4px 0 0;
+	color: var(--text-muted);
+}
+
 .merge-status-bar {
 	display: flex;
 	align-items: flex-start;
@@ -517,6 +631,12 @@ button {
 	.merge-status-bar {
 		flex-direction: column;
 		align-items: flex-start;
+	}
+
+	.workspace-tabs {
+		width: 100%;
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 
 	.merge-status-card,

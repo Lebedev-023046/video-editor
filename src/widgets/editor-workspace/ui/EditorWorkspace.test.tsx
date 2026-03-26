@@ -148,4 +148,99 @@ describe("EditorWorkspace", () => {
 			screen.getByRole("link", { name: "Скачать результат" }),
 		).toHaveAttribute("download", "clip-a-merged.mp4");
 	});
+
+	it("switches between the video and image tabs without breaking the video workflow", () => {
+		const items = [createItem("a", 0)];
+		useVideoUploadMock.mockReturnValue({
+			items,
+			sourceFilesById: createSourceFilesById(items),
+			isSaving: false,
+			errorMessage: null,
+			uploadIssues: [],
+			addFiles: vi.fn(),
+			removeItem: vi.fn(),
+			removeAllItems: vi.fn(),
+			reorderItems: vi.fn(),
+		});
+		useVideoMergeMock.mockReturnValue({
+			canMerge: false,
+			isMerging: false,
+			precheckIssue: null,
+			resultFile: null,
+			status: createStatus({ label: "Нужно как минимум два видео." }),
+			startMerge: vi.fn(),
+		});
+
+		render(<EditorWorkspace />);
+
+		expect(screen.getByRole("button", { name: "Видео" })).toHaveAttribute(
+			"aria-pressed",
+			"true",
+		);
+		expect(screen.getByText("Добавить видео")).toBeInTheDocument();
+
+		fireEvent.click(screen.getByRole("button", { name: "Изображения" }));
+
+		expect(screen.getByRole("button", { name: "Изображения" })).toHaveAttribute(
+			"aria-pressed",
+			"true",
+		);
+		expect(
+			screen.getByRole("heading", { name: "Конвертация изображений" }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByText(/выберите формат вывода и подготовьте очередь/i),
+		).toBeInTheDocument();
+		expect(
+			screen.queryByRole("button", { name: "Объединить" }),
+		).not.toBeInTheDocument();
+
+		fireEvent.click(screen.getByRole("button", { name: "Видео" }));
+
+		expect(screen.getByText("Добавить видео")).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: "Объединить" }),
+		).toBeInTheDocument();
+	});
+
+	it("preserves the video-side status when returning from the image tab", () => {
+		const items = [createItem("a", 0), createItem("b", 1)];
+		useVideoUploadMock.mockReturnValue({
+			items,
+			sourceFilesById: createSourceFilesById(items),
+			isSaving: false,
+			errorMessage: "Не удалось сохранить видео в браузере.",
+			uploadIssues: [],
+			addFiles: vi.fn(),
+			removeItem: vi.fn(),
+			removeAllItems: vi.fn(),
+			reorderItems: vi.fn(),
+		});
+		useVideoMergeMock.mockReturnValue({
+			canMerge: false,
+			isMerging: false,
+			precheckIssue: null,
+			resultFile: new File(["merged"], "clip-a-merged.mp4", {
+				type: "video/mp4",
+			}),
+			status: createStatus({ type: "success", label: "" }),
+			startMerge: vi.fn(),
+		});
+
+		render(<EditorWorkspace />);
+
+		fireEvent.click(screen.getByRole("button", { name: "Изображения" }));
+		expect(
+			screen.getByRole("heading", { name: "Конвертация изображений" }),
+		).toBeInTheDocument();
+
+		fireEvent.click(screen.getByRole("button", { name: "Видео" }));
+
+		expect(
+			screen.getByText("Не удалось сохранить видео в браузере."),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("link", { name: "Скачать результат" }),
+		).toHaveAttribute("download", "clip-a-merged.mp4");
+	});
 });

@@ -29,3 +29,21 @@ if (!("revokeObjectURL" in URL)) {
 		writable: true,
 	});
 }
+
+if (!("arrayBuffer" in Blob.prototype)) {
+	Object.defineProperty(Blob.prototype, "arrayBuffer", {
+		value() {
+			return new Promise<ArrayBuffer>((resolve, reject) => {
+				const reader = new FileReader();
+				reader.onerror = () => {
+					reject(reader.error);
+				};
+				reader.onload = () => {
+					resolve(reader.result as ArrayBuffer);
+				};
+				reader.readAsArrayBuffer(this);
+			});
+		},
+		writable: true,
+	});
+}

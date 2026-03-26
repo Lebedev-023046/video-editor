@@ -1,4 +1,13 @@
+import { useEffect, useState } from "react";
+
+import {
+	createObjectUrl,
+	revokeObjectUrl,
+} from "../../../widgets/shared/lib/browser/object-url";
 import { useImageConvert } from "../model/use-image-convert";
+import { ArchiveDownloadPanel } from "./ArchiveDownloadPanel";
+import { ConversionStatusList } from "./ConversionStatusList";
+import { ConversionSummary } from "./ConversionSummary";
 import { ImageUploadZone } from "./ImageUploadZone";
 
 export function ImageConvertTab() {
@@ -8,10 +17,37 @@ export function ImageConvertTab() {
 		counts,
 		issues,
 		isAddingFiles,
+		isConverting,
+		progress,
+		errorMessage,
+		archive,
 		addFiles,
 		clearSession,
 		setOutputFormat,
+		startConversion,
+		rerunFailedItems,
 	} = useImageConvert();
+	const [archiveUrl, setArchiveUrl] = useState<string | null>(null);
+
+	useEffect(() => {
+		if (!archive.file) {
+			setArchiveUrl((currentUrl) => {
+				revokeObjectUrl(currentUrl);
+				return null;
+			});
+			return;
+		}
+
+		const nextUrl = createObjectUrl(archive.file);
+		setArchiveUrl((currentUrl) => {
+			revokeObjectUrl(currentUrl);
+			return nextUrl;
+		});
+
+		return () => {
+			revokeObjectUrl(nextUrl);
+		};
+	}, [archive.file]);
 
 	return (
 		<div className="image-convert-layout">
@@ -47,6 +83,7 @@ export function ImageConvertTab() {
 
 			<section className="upload-shell">
 				<ImageUploadZone
+					disabled={isConverting}
 					isAddingFiles={isAddingFiles}
 					onFilesSelected={(files) => {
 						if (files) {
@@ -59,8 +96,10 @@ export function ImageConvertTab() {
 			<section className="card section-card image-session-card">
 				<div className="section-heading">
 					<div className="image-session-copy">
-						<strong>Сессия</strong>
-						<p>Формат вывода: {outputFormat.toUpperCase()}</p>
+						<strong>Управление сессией</strong>
+						<p>
+							Добавляйте файлы, запускайте пакет и очищайте текущую очередь.
+						</p>
 					</div>
 					<button
 						type="button"
@@ -79,6 +118,27 @@ export function ImageConvertTab() {
 					<span className="status-pill">Ошибок: {counts.failed}</span>
 				</div>
 
+				<div className="section-heading-actions">
+					<button
+						type="button"
+						className="primary-button"
+						disabled={counts.queued === 0 || isConverting}
+						onClick={startConversion}
+					>
+						{isConverting ? "Конвертация..." : "Запустить конвертацию"}
+					</button>
+					<button
+						type="button"
+						className="secondary-button"
+						disabled={counts.failed === 0 || isConverting}
+						onClick={rerunFailedItems}
+					>
+						Повторить ошибки ({counts.failed})
+					</button>
+				</div>
+
+				{errorMessage ? <p className="error-banner">{errorMessage}</p> : null}
+
 				{issues.length > 0 ? (
 					<ul className="issue-list">
 						{issues.map((issue) => (
@@ -89,28 +149,23 @@ export function ImageConvertTab() {
 						))}
 					</ul>
 				) : null}
-
-				{items.length > 0 ? (
-					<ul className="image-queue-list">
-						{items.map((item) => (
-							<li key={item.id} className="image-queue-item">
-								<div>
-									<strong>{item.name}</strong>
-									<p>{Math.max(1, Math.round(item.size / 1024))} KB</p>
-								</div>
-								<span className="status-pill">Queued</span>
-							</li>
-						))}
-					</ul>
-				) : (
-					<div className="empty-state">
-						<strong>Очередь пуста</strong>
-						<p>
-							Добавьте HEIC-изображения, чтобы подготовить пакет к конвертации.
-						</p>
-					</div>
-				)}
 			</section>
+
+			<div className="image-convert-dashboard">
+				<ConversionSummary
+					counts={counts}
+					outputFormat={outputFormat}
+					progress={progress}
+					isConverting={isConverting}
+				/>
+				<ArchiveDownloadPanel archive={archive} archiveUrl={archiveUrl} />
+			</div>
+
+			<ConversionStatusList
+				items={items}
+				isConverting={isConverting}
+				onRerunFailedItems={rerunFailedItems}
+			/>
 		</div>
 	);
 }

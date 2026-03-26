@@ -131,6 +131,13 @@ button {
 	gap: 16px;
 }
 
+.image-convert-dashboard {
+	display: grid;
+	grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
+	gap: 16px;
+	align-items: start;
+}
+
 .image-convert-hero {
 	display: grid;
 	gap: 14px;
@@ -166,6 +173,49 @@ button {
 	gap: 8px;
 }
 
+.image-summary-card,
+.image-download-panel,
+.image-status-card {
+	min-width: 0;
+}
+
+.image-summary-heading,
+.image-status-heading {
+	align-items: flex-start;
+}
+
+.image-summary-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 12px;
+}
+
+.image-summary-stat {
+	display: grid;
+	gap: 6px;
+	padding: 14px 16px;
+	border-radius: 18px;
+	border: 1px solid var(--border);
+	background: linear-gradient(
+		180deg,
+		var(--surface-strong) 0%,
+		var(--surface-muted) 100%
+	);
+}
+
+.image-summary-stat span {
+	color: var(--text-muted);
+}
+
+.image-summary-stat strong {
+	font-size: clamp(1.2rem, 3vw, 1.7rem);
+	letter-spacing: -0.04em;
+}
+
+.image-progress-pill {
+	font-weight: 700;
+}
+
 .image-session-copy p {
 	margin: 0;
 	color: var(--text-muted);
@@ -199,6 +249,153 @@ button {
 .image-queue-item p {
 	margin: 4px 0 0;
 	color: var(--text-muted);
+}
+
+.image-item-error {
+	color: var(--danger);
+}
+
+.image-progress-card {
+	display: grid;
+	gap: 6px;
+	padding: 14px 16px;
+	border-radius: 18px;
+	border: 1px solid var(--border);
+	background: var(--surface-muted);
+}
+
+.image-progress-card p {
+	margin: 0;
+	color: var(--text-muted);
+}
+
+.image-progress-track {
+	position: relative;
+	overflow: hidden;
+	height: 12px;
+	border-radius: 999px;
+	border: 1px solid var(--border);
+	background: var(--surface-muted);
+}
+
+.image-progress-fill {
+	height: 100%;
+	border-radius: inherit;
+	background: linear-gradient(90deg, #111111 0%, #4d7f5f 100%);
+	transition: width 0.2s ease;
+}
+
+.image-download-result {
+	justify-content: flex-start;
+	min-height: 0;
+}
+
+.image-download-panel {
+	align-content: start;
+}
+
+.image-download-note {
+	margin: 0;
+	color: var(--text-muted);
+	line-height: 1.5;
+}
+
+.image-filter-group {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.image-status-shell {
+	display: grid;
+	gap: 10px;
+	min-width: 0;
+}
+
+.image-status-list-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 0 4px;
+	color: var(--text-muted);
+	font-size: 0.95rem;
+}
+
+.image-status-viewport {
+	overflow: auto;
+	border-radius: 22px;
+	border: 1px solid var(--border);
+	background: color-mix(in srgb, var(--surface-muted) 86%, transparent);
+}
+
+.image-status-spacer {
+	position: relative;
+	width: 100%;
+}
+
+.image-status-offset {
+	position: absolute;
+	inset: 0 0 auto;
+}
+
+.image-status-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+}
+
+.image-status-row {
+	height: 88px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 14px 16px;
+	border-bottom: 1px solid var(--border);
+}
+
+.image-status-row:last-child {
+	border-bottom: 0;
+}
+
+.image-status-meta {
+	min-width: 0;
+}
+
+.image-status-meta strong,
+.image-status-meta p {
+	overflow-wrap: anywhere;
+}
+
+.image-status-meta p {
+	margin: 4px 0 0;
+	color: var(--text-muted);
+}
+
+.image-status-badge {
+	flex: 0 0 auto;
+}
+
+.image-status-queued {
+	background: var(--surface-strong);
+}
+
+.image-status-converting {
+	background: rgba(214, 153, 46, 0.14);
+	border-color: rgba(214, 153, 46, 0.3);
+}
+
+.image-status-done {
+	background: rgba(63, 163, 123, 0.16);
+	border-color: rgba(63, 163, 123, 0.26);
+}
+
+.image-status-failed {
+	background: rgba(183, 55, 55, 0.12);
+	border-color: rgba(183, 55, 55, 0.22);
+	color: var(--danger);
 }
 
 .merge-status-bar {
@@ -639,6 +836,16 @@ button {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 
+	.image-convert-dashboard,
+	.image-summary-grid {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.image-filter-group {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
 	.merge-status-card,
 	.primary-button {
 		width: 100%;
@@ -654,5 +861,16 @@ button {
 	.upload-zone {
 		min-height: 52vh;
 		padding: 24px;
+	}
+
+	.image-status-row,
+	.image-status-list-header {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+
+	.image-status-row {
+		height: auto;
+		min-height: 88px;
 	}
 }

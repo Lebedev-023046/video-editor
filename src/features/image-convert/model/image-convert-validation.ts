@@ -1,12 +1,16 @@
 import type { ImageConvertIssue } from "./image-convert-types";
 
 export const MAX_IMAGE_CONVERT_FILES = 5000;
+export const EMPTY_IMAGE_SELECTION_MESSAGE = "Выберите хотя бы один HEIC-файл.";
 
 const HEIC_EXTENSION_PATTERN = /\.(heic|heif)$/i;
 const HEIC_MIME_TYPES = new Set(["image/heic", "image/heif"]);
 
 function isHeicFile(file: File) {
-	return HEIC_MIME_TYPES.has(file.type.toLowerCase()) || HEIC_EXTENSION_PATTERN.test(file.name);
+	return (
+		HEIC_MIME_TYPES.has(file.type.toLowerCase()) ||
+		HEIC_EXTENSION_PATTERN.test(file.name)
+	);
 }
 
 export function createUnsupportedImageIssue(file: File): ImageConvertIssue {
@@ -23,10 +27,15 @@ export function createFileLimitIssue(file: File): ImageConvertIssue {
 	};
 }
 
-export function validateImageConvertFiles(
-	files: File[],
-	currentCount: number,
-) {
+export function validateImageConvertFiles(files: File[], currentCount: number) {
+	if (files.length === 0) {
+		return {
+			acceptedFiles: [],
+			issues: [],
+			message: EMPTY_IMAGE_SELECTION_MESSAGE,
+		};
+	}
+
 	const acceptedFiles: File[] = [];
 	const issues: ImageConvertIssue[] = [];
 	let remainingSlots = Math.max(0, MAX_IMAGE_CONVERT_FILES - currentCount);
@@ -49,5 +58,6 @@ export function validateImageConvertFiles(
 	return {
 		acceptedFiles,
 		issues,
+		message: null,
 	};
 }

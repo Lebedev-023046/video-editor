@@ -19,6 +19,8 @@
 		"@ffmpeg/ffmpeg": "^0.12.15",
 		"@ffmpeg/util": "^0.12.2",
 		"@hello-pangea/dnd": "^18.0.1",
+		"fflate": "^0.8.2",
+		"heic-to": "^1.4.2",
 		"idb": "^8.0.2",
 		"react": "^19.1.1",
 		"react-dom": "^19.1.1"

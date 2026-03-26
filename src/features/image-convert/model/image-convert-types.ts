@@ -1,6 +1,10 @@
 export type ImageOutputFormat = "png" | "jpg";
 
-export type ImageConvertFileStatus = "queued" | "converting" | "done" | "failed";
+export type ImageConvertFileStatus =
+	| "queued"
+	| "converting"
+	| "done"
+	| "failed";
 
 export interface ImageConvertIssue {
 	fileName: string;
@@ -10,7 +14,9 @@ export interface ImageConvertIssue {
 export interface ImageConvertArchiveState {
 	isReady: boolean;
 	fileName: string | null;
+	file: File | null;
 	successfulCount: number;
+	failedCount: number;
 }
 
 export interface ImageConvertItem {
@@ -21,6 +27,9 @@ export interface ImageConvertItem {
 	file: File;
 	status: ImageConvertFileStatus;
 	errorMessage: string | null;
+	outputFileName: string | null;
+	outputMimeType: string | null;
+	outputFile: File | null;
 	sessionOrder: number;
 }
 
@@ -39,5 +48,13 @@ export interface ImageConvertSessionState {
 	counts: ImageConvertSessionCounts;
 	issues: ImageConvertIssue[];
 	isAddingFiles: boolean;
+	isConverting: boolean;
+	progress: {
+		processedItems: number;
+		totalItems: number;
+		currentFileName: string | null;
+		message: string;
+	} | null;
+	errorMessage: string | null;
 	archive: ImageConvertArchiveState;
 }
